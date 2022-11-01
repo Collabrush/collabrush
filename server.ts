@@ -20,12 +20,23 @@ nextApp.prepare().then(async () => {
 
 	io.on("connection", (socket: socketio.Socket) => {
 		console.log("connected " + socket.id)
-		socket.emit("status", "Hello from Socket.io")
+
+		// send array of already connected users
+		socket.emit("users", Array.from(io.sockets.sockets.keys()))
+		socket.broadcast.emit("user connected", socket.id)
+
 		socket.on("sendMessage", (message: string) => {
 			io.emit("recievedMessage", message)
 		})
+
+		socket.on("mousemove", (data) => {
+			data.id = socket.id
+			socket.broadcast.emit("moving", data)
+		})
+
 		socket.on("disconnect", () => {
 			console.log("client disconnected")
+			socket.broadcast.emit("clientdisconnect", socket.id)
 		})
 	})
 

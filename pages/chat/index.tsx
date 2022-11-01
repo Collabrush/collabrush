@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { io } from "socket.io-client"
 import useSocket from "../../utils/socket"
 
-const Page = () => {
+const Chat = () => {
 	const [messages, setMessages] = useState([])
 	const [message, setMessage] = useState("")
 	const socket = useSocket("/")
@@ -43,4 +43,4 @@ const Page = () => {
 	)
 }
 
-export default Page
+export default Chat
