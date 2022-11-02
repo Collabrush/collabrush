@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react"
-import { io } from "socket.io-client"
+"use client"
+
+import React, { MutableRefObject, useEffect, useRef, useState } from "react"
 import useSocket from "../../utils/socket"
 
 function drawLine(
@@ -14,6 +15,17 @@ function drawLine(
 	canvasContext.stroke()
 }
 
+function debounce(fn: Function, ms: number) {
+	let timer: any
+	return () => {
+		clearTimeout(timer)
+		timer = setTimeout(() => {
+			timer = null
+			fn(fn, [])
+		}, ms)
+	}
+}
+
 function now() {
 	return new Date().getTime()
 }
@@ -23,17 +35,37 @@ const Draw = () => {
 		[key: string]: Node
 	}>({})
 	const [clients, setClients] = useState({})
-	const [currUserPointer, setCurrUserPointer] = useState<HTMLDivElement>(null)
-	const canvasElement = useRef<HTMLCanvasElement>(null)
-	const [canvasContext, setCanvasContext] =
-		useState<CanvasRenderingContext2D>(null)
-	const pointersElement = useRef<HTMLDivElement>(null)
+	const [currUserPointer, setCurrUserPointer] = useState<HTMLDivElement>()
+	const canvasElement =
+		useRef<HTMLCanvasElement>() as MutableRefObject<HTMLCanvasElement>
+	const [canvasContext, setCanvasContext] = useState<CanvasRenderingContext2D>()
+	const pointersElement =
+		useRef<HTMLDivElement>() as MutableRefObject<HTMLDivElement>
 
 	const socket = useSocket("/")
 	const [drawing, setDrawing] = useState(false)
 	const [prevPos, setPrevPos] = useState({ x: 0, y: 0 })
 	const onClientMouseMoveCallback = useRef<any>(() => {})
 	const onClientDisconnectCallback = useRef<any>(() => {})
+	const [dimensions, setDimensions] = useState({
+		height: window.innerHeight,
+		width: window.innerWidth,
+	})
+
+	useEffect(() => {
+		const debouncedHandleResize = debounce(function handleResize() {
+			setDimensions({
+				height: window.innerHeight,
+				width: window.innerWidth,
+			})
+		}, 1000)
+
+		window.addEventListener("resize", debouncedHandleResize)
+
+		return () => {
+			window.removeEventListener("resize", debouncedHandleResize)
+		}
+	})
 
 	useEffect(() => {
 		onClientMouseMoveCallback.current = (data: {
@@ -49,7 +81,7 @@ const Draw = () => {
 			dataPointer.style.top = data.y + "px"
 			setPointers({ ...pointers, [data.id]: dataPointer })
 
-			if (data.drawing && clients[data.id]) {
+			if (data.drawing && clients[data.id] && canvasContext) {
 				drawLine(
 					canvasContext,
 					clients[data.id].x,
@@ -75,7 +107,7 @@ const Draw = () => {
 			if (pointers[id]) {
 				console.log("removing pointer", id)
 				console.log(pointers[id].parentNode)
-				pointers[id].parentNode.removeChild(pointers[id])
+				pointers[id].parentNode?.removeChild(pointers[id])
 				setPointers((pointers) => {
 					const newPointers = { ...pointers }
 					delete newPointers[id]
@@ -86,7 +118,13 @@ const Draw = () => {
 	}, [canvasContext, clients, pointers])
 
 	useEffect(() => {
-		if (!socket || !currUserPointer || !canvasContext) return
+		if (
+			!socket ||
+			!currUserPointer ||
+			!canvasContext ||
+			!pointersElement.current
+		)
+			return
 
 		socket.on("users", (users: string[]) => {
 			console.log(users)
@@ -139,12 +177,14 @@ const Draw = () => {
 	useEffect(() => {
 		if (!canvasElement.current || !pointersElement.current) return
 		setCurrUserPointer(document.createElement("div"))
-		setCanvasContext(canvasElement.current.getContext("2d"))
+		const ctx = canvasElement.current.getContext(
+			"2d"
+		) as CanvasRenderingContext2D
+		setCanvasContext(ctx)
 	}, [canvasElement, pointersElement])
 
 	useEffect(() => {
-		if (!currUserPointer) return
-		if (!canvasContext) return
+		if (!currUserPointer || !canvasElement.current || !canvasContext) return
 		canvasContext.fillStyle = "white"
 		canvasContext.fillRect(
 			0,
@@ -196,8 +236,8 @@ const Draw = () => {
 			<div id='pointers' ref={pointersElement}></div>
 			<canvas
 				id='canvas'
-				width='2000'
-				height='1000'
+				width={dimensions.width}
+				height={dimensions.height}
 				ref={canvasElement}></canvas>
 		</div>
 	)

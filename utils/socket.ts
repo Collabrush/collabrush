@@ -1,8 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from "react"
-import { io } from "socket.io-client"
+import { io, Socket } from "socket.io-client"
 
-function useSocket(url) {
+function useSocket(url): Socket {
 	const [socket, setSocket] = useState(null)
 
 	useEffect(() => {
