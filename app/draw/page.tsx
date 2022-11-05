@@ -4,6 +4,7 @@
 import React, { MutableRefObject, useEffect, useRef, useState } from "react"
 import useSocket from "../../utils/socket"
 import { useRouter } from "next/router"
+import Pointer from "./pointer"
 
 // function drawLine(
 // 	canvasContext: CanvasRenderingContext2D,
@@ -45,7 +46,8 @@ const Draw = () => {
 			updated: number
 		}
 	}>({})
-	const [currUserPointer, setCurrUserPointer] = useState<HTMLDivElement>()
+	const userColor = useRef<string>("#3B82F6")
+	// const [currUserPointer, setCurrUserPointer] = useState<HTMLDivElement>()
 	const canvasElement =
 		useRef<HTMLCanvasElement>() as MutableRefObject<HTMLCanvasElement>
 	const [canvasContext, setCanvasContext] = useState<CanvasRenderingContext2D>()
@@ -61,6 +63,27 @@ const Draw = () => {
 	})
 
 	const router = useRouter()
+	const pointerColors = [
+		"#EF4444",
+		"#F97316",
+		"#F59E0B",
+		"#EAB308",
+		"#84CC16",
+		"#22C55E",
+		"#10B981",
+		"#14B8A6",
+		"#06B6D4",
+		"#3B82F6",
+		"#6366F1",
+		"#8B5CF6",
+		"#A855F7",
+		"#D946EF",
+		"#EC4899",
+		"#F43F5E",
+		"#78716C",
+		"#71717A",
+		"#64748B",
+	]
 
 	useEffect(() => {
 		if (!router || socket) return
@@ -85,43 +108,57 @@ const Draw = () => {
 	useEffect(() => {
 		if (
 			!socket ||
-			!currUserPointer ||
+			// !currUserPointer ||
 			!canvasContext ||
 			!pointersElement.current
 		)
 			return
 
-		socket.on("users", (users: string[]) => {
-			// console.log(users)
-			const newPointers = {}
-			const newClients = {}
-			users.forEach((id) => {
-				if (id === socket.id || clients.current.hasOwnProperty(id)) return
-				console.log("new user", id)
-				newPointers[id] = pointersElement.current.appendChild(
-					currUserPointer.cloneNode()
-				)
-				newPointers[id].style.display = "block"
-				newClients[id] = {
-					id,
-					x: 0,
-					y: 0,
-					drawing: false,
-					updated: now(),
-				}
-			})
-			pointers.current = newPointers
-			clients.current = newClients
+		socket.on(
+			"users",
+			(
+				users: {
+					id: string
+					color: string
+				}[]
+			) => {
+				// console.log(users)
+				const newPointers = {}
+				const newClients = {}
+				users.forEach((user) => {
+					if (user.id === socket.id || clients.current.hasOwnProperty(user.id))
+						return
+					console.log("new user", user)
+					newPointers[user.id] = pointersElement.current.appendChild(
+						document.getElementById("pointer-" + user.color).cloneNode(true)
+					)
+					newPointers[user.id].style.display = "block"
+					newClients[user.id] = {
+						id: user.id,
+						x: 0,
+						y: 0,
+						drawing: false,
+						updated: now(),
+					}
+				})
+				pointers.current = newPointers
+				clients.current = newClients
+			}
+		)
+
+		socket.on("color", (color: string) => {
+			userColor.current = color
 		})
 
-		socket.on("user connected", (id: string) => {
+		socket.on("user connected", (id: string, socketColor: string) => {
 			if (id === socket.id || clients.current.hasOwnProperty(id)) return
-			console.log("user connected", id)
+			console.log("user connected", id, socketColor)
 			pointers.current = {
 				...pointers.current,
 				[id]: (function () {
 					const newPointer = pointersElement.current.appendChild(
-						currUserPointer.cloneNode()
+						// currUserPointer.cloneNode()
+						document.getElementById("pointer-" + socketColor).cloneNode(true)
 					) as HTMLDivElement
 					newPointer.style.display = "block"
 					return newPointer
@@ -150,8 +187,8 @@ const Draw = () => {
 			}) => {
 				const dataPointer = pointers.current[data.id] as HTMLDivElement
 
-				dataPointer.style.left = data.x + "px"
-				dataPointer.style.top = data.y + "px"
+				dataPointer.style.left = Math.min(data.x, dimensions.height) + "px"
+				dataPointer.style.top = Math.min(data.y, dimensions.width) + "px"
 				pointers.current = { ...pointers.current, [data.id]: dataPointer }
 
 				if (data.drawing && clients.current[data.id] && canvasContext) {
@@ -186,11 +223,13 @@ const Draw = () => {
 			}
 		})
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [socket, currUserPointer, canvasContext])
+	}, [socket, canvasContext])
 
 	useEffect(() => {
 		if (!canvasElement.current || !pointersElement.current) return
-		setCurrUserPointer(document.createElement("div"))
+		// const newCurrUserPointer = document.createElement("div")
+		// newCurrUserPointer.appendChild()
+		// setCurrUserPointer(newCurrUserPointer)
 		const ctx = canvasElement.current.getContext(
 			"2d"
 		) as CanvasRenderingContext2D
@@ -198,7 +237,7 @@ const Draw = () => {
 	}, [canvasElement, pointersElement])
 
 	useEffect(() => {
-		if (!currUserPointer || !canvasElement.current || !canvasContext) return
+		if (!canvasElement.current || !canvasContext) return
 		canvasContext.fillStyle = "white"
 		canvasContext.fillRect(
 			0,
@@ -206,9 +245,7 @@ const Draw = () => {
 			canvasElement.current.width,
 			canvasElement.current.height
 		)
-		currUserPointer.setAttribute("class", "pointer")
-		currUserPointer.style.display = "none"
-	}, [canvasContext, currUserPointer, canvasElement])
+	}, [canvasContext, canvasElement])
 
 	const handleMouseUp = (
 		e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
@@ -246,7 +283,17 @@ const Draw = () => {
 
 	return (
 		<div>
-			<div id='pointers' ref={pointersElement}></div>
+			<div className='hidden'>
+				{pointerColors.map((color, i) => (
+					<div
+						key={i}
+						id={`pointer-${color}`}
+						className='absolute -rotate-12 -translate-x-1 -translate-y-1'>
+						<Pointer color={color} />
+					</div>
+				))}
+			</div>
+			<div id='pointers' ref={pointersElement} className=''></div>
 			<canvas
 				id='canvas'
 				width={dimensions.width}
@@ -264,11 +311,17 @@ const Draw = () => {
 			<div className='absolute bottom-0 h-fit w-full z-10 p-10'>
 				{/* DEBUGGING INNTERFACE */}
 				<div className='flex flex-row space-x-3 justify-evenly w-full'>
-					<span className='bg-blue-500 text-white h-fit p-2'>
+					<span
+						className='text-white h-fit p-2'
+						style={{ backgroundColor: userColor.current }}>
 						Id: {socket?.id}
 					</span>
 					<div className='flex flex-col'>
-						<div className='bg-blue-500 text-white p-2'>Clients</div>
+						<div
+							className='text-white p-2'
+							style={{ backgroundColor: userColor.current }}>
+							Clients
+						</div>
 						<div className='bg-blue-100 p-2'>
 							{Object.keys(clients.current).map((id) => (
 								<div key={id}>{id}</div>
@@ -277,7 +330,11 @@ const Draw = () => {
 						</div>
 					</div>
 					<div className='flex flex-col'>
-						<div className='bg-blue-500 text-white p-2'>Pointers</div>
+						<div
+							className='text-white p-2'
+							style={{ backgroundColor: userColor.current }}>
+							Pointers
+						</div>
 						<div className='bg-blue-100 p-2'>
 							{Object.keys(pointers.current).map((id) => (
 								<div key={id}>{id}</div>
@@ -286,7 +343,8 @@ const Draw = () => {
 						</div>
 					</div>
 					<div
-						className='bg-blue-500 text-white p-2 cursor-pointer h-fit'
+						className='text-white p-2 cursor-pointer h-fit'
+						style={{ backgroundColor: userColor.current }}
 						onClick={() => {
 							canvasContext.clearRect(
 								0,
