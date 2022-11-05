@@ -1,19 +1,21 @@
+// @refresh reset
 "use client"
 
 import React, { MutableRefObject, useEffect, useRef, useState } from "react"
 import useSocket from "../../utils/socket"
+import { useRouter } from "next/router"
 
-function drawLine(
-	canvasContext: CanvasRenderingContext2D,
-	fromx: number,
-	fromy: number,
-	tox: number,
-	toy: number
-) {
-	canvasContext.moveTo(fromx, fromy)
-	canvasContext.lineTo(tox, toy)
-	canvasContext.stroke()
-}
+// function drawLine(
+// 	canvasContext: CanvasRenderingContext2D,
+// 	fromx: number,
+// 	fromy: number,
+// 	tox: number,
+// 	toy: number
+// ) {
+// 	canvasContext.moveTo(fromx, fromy)
+// 	canvasContext.lineTo(tox, toy)
+// 	canvasContext.stroke()
+// }
 
 function debounce(fn: Function, ms: number) {
 	let timer: any
@@ -31,10 +33,18 @@ function now() {
 }
 
 const Draw = () => {
-	const [pointers, setPointers] = useState<{
+	const pointers = useRef<{
 		[key: string]: Node
 	}>({})
-	const [clients, setClients] = useState({})
+	const clients = useRef<{
+		[key: string]: {
+			id: string
+			x: number
+			y: number
+			drawing: boolean
+			updated: number
+		}
+	}>({})
 	const [currUserPointer, setCurrUserPointer] = useState<HTMLDivElement>()
 	const canvasElement =
 		useRef<HTMLCanvasElement>() as MutableRefObject<HTMLCanvasElement>
@@ -45,12 +55,17 @@ const Draw = () => {
 	const socket = useSocket("/")
 	const [drawing, setDrawing] = useState(false)
 	const [prevPos, setPrevPos] = useState({ x: 0, y: 0 })
-	const onClientMouseMoveCallback = useRef<any>(() => {})
-	const onClientDisconnectCallback = useRef<any>(() => {})
 	const [dimensions, setDimensions] = useState({
 		height: window.innerHeight,
 		width: window.innerWidth,
 	})
+
+	const router = useRouter()
+
+	useEffect(() => {
+		if (!router || socket) return
+		router.reload()
+	}, [router, socket])
 
 	useEffect(() => {
 		const debouncedHandleResize = debounce(function handleResize() {
@@ -68,56 +83,6 @@ const Draw = () => {
 	})
 
 	useEffect(() => {
-		onClientMouseMoveCallback.current = (data: {
-			id: string
-			x: number
-			y: number
-			drawing: boolean
-			updated: number
-		}) => {
-			const dataPointer = pointers[data.id] as HTMLDivElement
-
-			dataPointer.style.left = data.x + "px"
-			dataPointer.style.top = data.y + "px"
-			setPointers({ ...pointers, [data.id]: dataPointer })
-
-			if (data.drawing && clients[data.id] && canvasContext) {
-				drawLine(
-					canvasContext,
-					clients[data.id].x,
-					clients[data.id].y,
-					data.x,
-					data.y
-				)
-			}
-
-			// clients[data.id] = data
-			// clients[data.id].updated = now()
-			data.updated = now()
-			setClients({ ...clients, [data.id]: data })
-		}
-		onClientDisconnectCallback.current = (id: string) => {
-			// delete clients[id]
-			if (!clients.hasOwnProperty(id)) return
-			setClients((clients) => {
-				const newClients = { ...clients }
-				delete newClients[id]
-				return newClients
-			})
-			if (pointers[id]) {
-				console.log("removing pointer", id)
-				console.log(pointers[id].parentNode)
-				pointers[id].parentNode?.removeChild(pointers[id])
-				setPointers((pointers) => {
-					const newPointers = { ...pointers }
-					delete newPointers[id]
-					return newPointers
-				})
-			}
-		}
-	}, [canvasContext, clients, pointers])
-
-	useEffect(() => {
 		if (
 			!socket ||
 			!currUserPointer ||
@@ -127,24 +92,33 @@ const Draw = () => {
 			return
 
 		socket.on("users", (users: string[]) => {
-			console.log(users)
+			// console.log(users)
 			const newPointers = {}
+			const newClients = {}
 			users.forEach((id) => {
-				if (id === socket.id || clients.hasOwnProperty(id)) return
+				if (id === socket.id || clients.current.hasOwnProperty(id)) return
 				console.log("new user", id)
 				newPointers[id] = pointersElement.current.appendChild(
 					currUserPointer.cloneNode()
 				)
 				newPointers[id].style.display = "block"
+				newClients[id] = {
+					id,
+					x: 0,
+					y: 0,
+					drawing: false,
+					updated: now(),
+				}
 			})
-			setPointers(newPointers)
+			pointers.current = newPointers
+			clients.current = newClients
 		})
 
 		socket.on("user connected", (id: string) => {
-			if (id === socket.id || clients.hasOwnProperty(id)) return
+			if (id === socket.id || clients.current.hasOwnProperty(id)) return
 			console.log("user connected", id)
-			setPointers({
-				...pointers,
+			pointers.current = {
+				...pointers.current,
 				[id]: (function () {
 					const newPointer = pointersElement.current.appendChild(
 						currUserPointer.cloneNode()
@@ -152,24 +126,64 @@ const Draw = () => {
 					newPointer.style.display = "block"
 					return newPointer
 				})(),
-			})
+			}
+			clients.current = {
+				...clients.current,
+				[id]: {
+					id,
+					x: 0,
+					y: 0,
+					drawing: false,
+					updated: now(),
+				},
+			}
 		})
 
 		socket.on(
 			"moving",
 			(data: {
-				id: PropertyKey
+				id: string
 				x: number
 				y: number
 				drawing: boolean
 				updated: number
 			}) => {
-				onClientMouseMoveCallback.current(data)
+				const dataPointer = pointers.current[data.id] as HTMLDivElement
+
+				dataPointer.style.left = data.x + "px"
+				dataPointer.style.top = data.y + "px"
+				pointers.current = { ...pointers.current, [data.id]: dataPointer }
+
+				if (data.drawing && clients.current[data.id] && canvasContext) {
+					canvasContext.moveTo(
+						clients.current[data.id].x,
+						clients.current[data.id].y
+					)
+					canvasContext.lineTo(data.x, data.y)
+					canvasContext.stroke()
+				}
+
+				// clients.current[data.id] = data
+				// clients.current[data.id].updated = now()
+				data.updated = now()
+				clients.current = { ...clients.current, [data.id]: data }
 			}
 		)
 
 		socket.on("clientdisconnect", (id: string) => {
-			onClientDisconnectCallback.current(id)
+			// delete clients.current[id]
+			if (!clients.current.hasOwnProperty(id)) return
+			const newClients = clients.current
+			if (newClients.hasOwnProperty(id)) delete newClients[id]
+			clients.current = newClients
+			if (pointers.current[id]) {
+				console.log("removing pointer", id)
+				console.log(pointers.current[id].parentNode)
+				pointers.current[id].parentNode?.removeChild(pointers.current[id])
+				const newPointers = pointers.current
+				if (newPointers.hasOwnProperty(id)) delete newPointers[id]
+				pointers.current = newPointers
+			}
 		})
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [socket, currUserPointer, canvasContext])
@@ -194,42 +208,41 @@ const Draw = () => {
 		)
 		currUserPointer.setAttribute("class", "pointer")
 		currUserPointer.style.display = "none"
+	}, [canvasContext, currUserPointer, canvasElement])
 
-		canvasElement.current.onmouseup =
-			canvasElement.current.onmousemove =
-			canvasElement.current.onmousedown =
-				function (e) {
-					switch (e.type) {
-						case "mouseup":
-							setDrawing(false)
-							break
+	const handleMouseUp = (
+		e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
+	) => {
+		// canvasContext.closePath()
+		setDrawing(false)
+	}
 
-						case "mousemove":
-							// if (now() - lastEmit > 50) {
-							socket.emit("mousemove", {
-								x: e.pageX,
-								y: e.pageY,
-								drawing: drawing,
-							})
-							// lastEmit = now()
-							// }
+	const handleMouseMove = (
+		e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
+	) => {
+		// if (now() - lastEmit > 50) {
+		socket.emit("mousemove", {
+			x: e.pageX,
+			y: e.pageY,
+			drawing: drawing,
+		})
+		// lastEmit = now()
+		// }
 
-							if (drawing) {
-								drawLine(canvasContext, prevPos.x, prevPos.y, e.pageX, e.pageY)
-								setPrevPos({ x: e.pageX, y: e.pageY })
-							}
-							break
+		if (drawing) {
+			canvasContext.moveTo(prevPos.x, prevPos.y)
+			canvasContext.lineTo(e.pageX, e.pageY)
+			canvasContext.stroke()
+			setPrevPos({ x: e.pageX, y: e.pageY })
+		}
+	}
 
-						case "mousedown":
-							setDrawing(true)
-							setPrevPos({ x: e.pageX, y: e.pageY })
-							break
-
-						default:
-							break
-					}
-				}
-	}, [canvasContext, currUserPointer, drawing, prevPos.x, prevPos.y, socket])
+	const handleMouseDown = (
+		e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
+	) => {
+		setDrawing(true)
+		setPrevPos({ x: e.pageX, y: e.pageY })
+	}
 
 	return (
 		<div>
@@ -238,7 +251,54 @@ const Draw = () => {
 				id='canvas'
 				width={dimensions.width}
 				height={dimensions.height}
-				ref={canvasElement}></canvas>
+				ref={canvasElement}
+				onMouseMove={(e) => {
+					handleMouseMove(e)
+				}}
+				onMouseUp={(e) => {
+					handleMouseUp(e)
+				}}
+				onMouseDown={(e) => {
+					handleMouseDown(e)
+				}}></canvas>
+			<div className='absolute bottom-0 h-fit w-full z-10 p-10'>
+				{/* DEBUGGING INNTERFACE */}
+				<div className='flex flex-row space-x-3 justify-evenly w-full'>
+					<span className='bg-blue-500 text-white h-fit p-2'>
+						Id: {socket?.id}
+					</span>
+					<div className='flex flex-col'>
+						<div className='bg-blue-500 text-white p-2'>Clients</div>
+						<div className='bg-blue-100 p-2'>
+							{Object.keys(clients.current).map((id) => (
+								<div key={id}>{id}</div>
+							))}
+							{/* {JSON.stringify(clients.current)} */}
+						</div>
+					</div>
+					<div className='flex flex-col'>
+						<div className='bg-blue-500 text-white p-2'>Pointers</div>
+						<div className='bg-blue-100 p-2'>
+							{Object.keys(pointers.current).map((id) => (
+								<div key={id}>{id}</div>
+							))}
+							{/* {JSON.stringify(pointers.current)} */}
+						</div>
+					</div>
+					<div
+						className='bg-blue-500 text-white p-2 cursor-pointer h-fit'
+						onClick={() => {
+							canvasContext.clearRect(
+								0,
+								0,
+								canvasElement.current.width,
+								canvasElement.current.height
+							)
+						}}>
+						Clear canvas
+					</div>
+				</div>
+			</div>
 		</div>
 	)
 }
