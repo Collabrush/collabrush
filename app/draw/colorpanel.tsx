@@ -54,7 +54,7 @@ const Color = (props: {
 
   return (
     <div
-      className="border-[#D9D9D9] border-solid border rounded-full box-border h-4 m-px w-4 outline-1 outline-[#b4b4b4] transition-transform duration-200 hover:shadow-md"
+      className="box-border w-4 h-4 m-px transition-transform duration-200 border border-black border-solid rounded-full hover:shadow-md"
       style={style}
       onClick={props.handleClick}
     />
