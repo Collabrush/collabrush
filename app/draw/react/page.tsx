@@ -1,16 +1,67 @@
-import React from "react"
-import ReactPaint from "../reactpaint"
+"use client"
 
-interface Props {}
+import React, { useState } from "react"
 
-function DrawReact(props: Props) {
-	const {} = props
+import MenuBar from "../menubar"
+import Content from "../content"
+
+const defaultTool = "Pencil"
+
+import pencil from "../images/pencil.svg"
+import line from "../images/line.svg"
+import stroke from "../images/stroke.svg"
+import brush from "../images/brush.svg"
+import fill from "../images/fill.svg"
+import erase from "../images/erase.svg"
+import rectangle from "../images/rectangle.svg"
+import circle from "../images/circle.svg"
+import text from "../images/text.svg"
+import picker from "../images/picker.svg"
+
+const defaultToolbarItems = [
+	{ name: "Pencil", image: pencil },
+	{ name: "Line", image: line },
+	// { name: "Stroke", image: stroke },
+	{ name: "Brush", image: brush },
+	{ name: "Erase", image: erase },
+	{ name: "Fill", image: fill },
+	{ name: "Rectangle", image: rectangle },
+	{ name: "Text", image: text },
+	{ name: "Oval", image: circle },
+	{ name: "Picker", image: picker },
+]
+
+const ReactPaint = () => {
+	const [color, setColor] = useState("black")
+	const [strokeWidth, setStrokeWidth] = useState(1)
+	const [selectedItem, setSelectedItem] = useState(defaultTool)
+	const [toolbarItems, setToolbarItems] = useState(defaultToolbarItems)
+
+	const handleClick = (_event: any, method: string, tool: any) => {
+		if (method === "changeTool") {
+			if (selectedItem === "Erase" && strokeWidth > 32) setStrokeWidth(32)
+			setSelectedItem(tool)
+		} else if (method === "increaseStroke") {
+			if (strokeWidth < (selectedItem === "Erase" ? 72 : 32))
+				setStrokeWidth(strokeWidth + 1)
+		} else if (method === "decreaseStroke") {
+			if (strokeWidth > 1) setStrokeWidth(strokeWidth - 1)
+		}
+	}
 
 	return (
-		<div className='flex flex-col h-full'>
-			<ReactPaint />
-		</div>
+		<>
+			<MenuBar />
+			<Content
+				items={toolbarItems}
+				activeItem={selectedItem}
+				handleClick={handleClick}
+				color={color}
+				setColor={setColor}
+				strokeWidth={strokeWidth}
+			/>
+		</>
 	)
 }
 
-export default DrawReact
+export default ReactPaint
