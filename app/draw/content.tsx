@@ -1,6 +1,8 @@
 "use client"
 
 import React, { MutableRefObject, useEffect, useRef, useState } from "react"
+import { Socket } from "socket.io-client"
+import floodFill from "../../utils/floodFill"
 
 import Toolbox from "./toolbox"
 
@@ -11,6 +13,8 @@ const Content = (props: {
 	handleClick: any
 	setColor: any
 	strokeWidth: number
+	canvasElement: MutableRefObject<HTMLCanvasElement>
+	socket: Socket
 }) => {
 	const [isDrawing, setIsDrawing] = useState(false)
 	const [cursor, setCursor] = useState("cursor-crosshair")
@@ -40,6 +44,7 @@ const Content = (props: {
 
 	useEffect(() => {
 		if (!canvasRef.current || !canvasOverlayRef.current) return
+		props.canvasElement.current = canvasRef.current
 		let canvasRect = canvasRef.current.getBoundingClientRect()
 		const ctx = canvasRef.current.getContext("2d")
 		setCtx(ctx)
@@ -49,8 +54,9 @@ const Content = (props: {
 		ctx.fillStyle = "white"
 		ctx.fillRect(0, 0, window.innerWidth, window.innerHeight)
 		ctx.stroke()
-	}, [canvasRef, canvasOverlayRef])
+	}, [canvasRef, canvasOverlayRef, props.canvasElement])
 
+	//helpers
 	const getPixelColor = (x: number, y: number) => {
 		var pxData = ctx.getImageData(x, y, 1, 1)
 		return (
@@ -121,6 +127,10 @@ const Content = (props: {
 			ctx.strokeStyle = "white"
 			ctx.moveTo(e.clientX - offsetX, e.clientY - offsetY)
 		}
+		props.socket.emit("startDrawing", {
+			color: activeItem === "Erase" ? "white" : props.color,
+			stroke: props.strokeWidth,
+		})
 	}
 
 	const handleMouseMove = (e: {
@@ -212,6 +222,16 @@ const Content = (props: {
 				pickerRef.current.style.left = e.clientX - offsetX + 50 + "px"
 			}
 		}
+		if (props.socket) {
+			props.socket.emit("mousemove", {
+				mx: e.clientX,
+				my: e.clientY,
+				x: e.clientX - offsetX,
+				y: e.clientY - offsetY,
+				drawing: isDrawing,
+				tool: props.activeItem,
+			})
+		}
 	}
 
 	const handleMouseUp = (e: {
@@ -279,8 +299,21 @@ const Content = (props: {
 			ctx.stroke()
 		}
 
+		if (props.activeItem === "Fill") {
+			const color = getPixelColor(e.clientX - offsetX, e.clientY - offsetY)
+			if (color === props.color) return
+			const startX = e.clientX - offsetX
+			const startY = e.clientY - offsetY
+			const splitColor = props.color.toString().slice(4, -1).split(",")
+			const fillColor = [splitColor[0], splitColor[1], splitColor[2]]
+			floodFill(ctx, startX, startY, fillColor)
+		}
+
 		ctx.closePath()
 		setIsDrawing(false)
+		if (props.socket) {
+			props.socket.emit("stopDrawing")
+		}
 	}
 
 	const loadImageURL = (url: string) => {
@@ -333,9 +366,9 @@ const Content = (props: {
 				setColor={props.setColor}
 				strokeWidth={props.strokeWidth}
 			/>
-			<div className='relative flex-grow lg:w-screen lg:overflow-hidden p-4 border-black border-4 w-min'>
+			<div className='relative bg-[#C7B9FF] flex-grow lg:w-screen lg:overflow-hidden p-4 border-black border-4 w-min'>
 				<canvas
-					className={"mx-auto bg-[#C7B9FF] border-4 border-black " + cursor}
+					className={"mx-auto border-4 border-black " + cursor}
 					width={window.innerWidth - 64}
 					height={(4 * window.innerHeight) / 5}
 					ref={canvasRef}

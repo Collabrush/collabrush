@@ -67,6 +67,15 @@ nextApp.prepare().then(async () => {
 			io.emit("recievedMessage", message)
 		})
 
+		socket.on("startDrawing", (data) => {
+			data.id = socket.id
+			socket.broadcast.emit("startDrawing", data)
+		})
+
+		socket.on("stopDrawing", () => {
+			socket.broadcast.emit("stopDrawing")
+		})
+
 		socket.on("mousemove", (data) => {
 			data.id = socket.id
 			socket.broadcast.emit("moving", data)

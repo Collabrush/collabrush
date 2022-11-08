@@ -1,22 +1,23 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { MutableRefObject, useState } from "react"
 
-import MenuBar from "../menubar"
-import Content from "../content"
+import MenuBar from "./menubar"
+import Content from "./content"
 
 const defaultTool = "Pencil"
 
-import pencil from "../images/pencil.svg"
-import line from "../images/line.svg"
-import stroke from "../images/stroke.svg"
-import brush from "../images/brush.svg"
-import fill from "../images/fill.svg"
-import erase from "../images/erase.svg"
-import rectangle from "../images/rectangle.svg"
-import circle from "../images/circle.svg"
-import text from "../images/text.svg"
-import picker from "../images/picker.svg"
+import pencil from "./images/pencil.svg"
+import line from "./images/line.svg"
+// import stroke from "./images/stroke.svg"
+import brush from "./images/brush.svg"
+import fill from "./images/fill.svg"
+import erase from "./images/erase.svg"
+import rectangle from "./images/rectangle.svg"
+import circle from "./images/circle.svg"
+import text from "./images/text.svg"
+import picker from "./images/picker.svg"
+import { Socket } from "socket.io-client"
 
 const defaultToolbarItems = [
 	{ name: "Pencil", image: pencil },
@@ -31,7 +32,10 @@ const defaultToolbarItems = [
 	{ name: "Picker", image: picker },
 ]
 
-const ReactPaint = () => {
+const ReactPaint = (props: {
+	canvasElement: MutableRefObject<HTMLCanvasElement>
+	socket: Socket
+}) => {
 	const [color, setColor] = useState("black")
 	const [strokeWidth, setStrokeWidth] = useState(1)
 	const [selectedItem, setSelectedItem] = useState(defaultTool)
@@ -59,6 +63,8 @@ const ReactPaint = () => {
 				color={color}
 				setColor={setColor}
 				strokeWidth={strokeWidth}
+				canvasElement={props.canvasElement}
+				socket={props.socket}
 			/>
 		</>
 	)
