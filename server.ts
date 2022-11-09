@@ -67,13 +67,17 @@ nextApp.prepare().then(async () => {
 			io.emit("recievedMessage", message)
 		})
 
-		socket.on("startDrawing", (data) => {
-			data.id = socket.id
-			socket.broadcast.emit("startDrawing", data)
-		})
+		// socket.on("startDrawing", (data) => {
+		// 	data.id = socket.id
+		// 	socket.broadcast.emit("startDrawing", data)
+		// })
 
-		socket.on("stopDrawing", () => {
-			socket.broadcast.emit("stopDrawing")
+		// socket.on("stopDrawing", () => {
+		// 	socket.broadcast.emit("stopDrawing")
+		// })
+
+		socket.on("canvasData", (data) => {
+			socket.broadcast.emit("canvasData", data)
 		})
 
 		socket.on("mousemove", (data) => {

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client"
 
 import React, { MutableRefObject, useEffect, useRef, useState } from "react"
@@ -15,6 +16,12 @@ const Content = (props: {
 	strokeWidth: number
 	canvasElement: MutableRefObject<HTMLCanvasElement>
 	socket: Socket
+	buffer: string[]
+	setBuffer: Function
+	undoBuffer: string[]
+	setUndoBuffer: Function
+	redoBuffer: string[]
+	setRedoBuffer: Function
 }) => {
 	const [isDrawing, setIsDrawing] = useState(false)
 	const [cursor, setCursor] = useState("cursor-crosshair")
@@ -39,22 +46,46 @@ const Content = (props: {
 		useRef<HTMLCanvasElement>() as MutableRefObject<HTMLCanvasElement>
 	const canvasOverlayRef =
 		useRef<HTMLCanvasElement>() as MutableRefObject<HTMLCanvasElement>
+	const canvasSocketRef =
+		useRef<HTMLCanvasElement>() as MutableRefObject<HTMLCanvasElement>
+
 	const [ctx, setCtx] = useState<CanvasRenderingContext2D>()
 	const [ctxOverlay, setCtxOverlay] = useState<CanvasRenderingContext2D>()
+	const [ctxSocket, setCtxSocket] = useState<CanvasRenderingContext2D>()
 
 	useEffect(() => {
-		if (!canvasRef.current || !canvasOverlayRef.current) return
+		if (
+			!canvasRef.current ||
+			!canvasOverlayRef.current ||
+			!canvasSocketRef.current
+		)
+			return
 		props.canvasElement.current = canvasRef.current
 		let canvasRect = canvasRef.current.getBoundingClientRect()
 		const ctx = canvasRef.current.getContext("2d")
 		setCtx(ctx)
 		setCtxOverlay(canvasOverlayRef.current.getContext("2d"))
+		setCtxSocket(canvasSocketRef.current.getContext("2d"))
 		setOffsetX(canvasRect.left + 3)
 		setOffsetY(canvasRect.top + 3)
 		ctx.fillStyle = "white"
 		ctx.fillRect(0, 0, window.innerWidth, window.innerHeight)
 		ctx.stroke()
-	}, [canvasRef, canvasOverlayRef, props.canvasElement])
+	}, [canvasRef, canvasOverlayRef, canvasSocketRef, props.canvasElement])
+
+	useEffect(() => {
+		if (!ctx || isDrawing) return
+		while (props.buffer.length > 0) {
+			const img = new Image()
+			img.onload = () => {
+				ctx.drawImage(img, 0, 0)
+			}
+			img.src = props.buffer[0]
+			const newBuffer = props.buffer
+			newBuffer.shift()
+			props.setBuffer(newBuffer)
+		}
+	}, [ctx, isDrawing, props.buffer])
 
 	//helpers
 	const getPixelColor = (x: number, y: number) => {
@@ -109,10 +140,19 @@ const Content = (props: {
 		ctx.strokeStyle = props.color
 		ctx.lineWidth = props.strokeWidth
 		ctx.lineJoin = ctx.lineCap = "round"
+		// socket
+		ctxSocket.beginPath()
+		ctxSocket.strokeStyle = props.color
+		ctxSocket.lineWidth = props.strokeWidth
+		ctxSocket.lineJoin = ctx.lineCap = "round"
 
 		if (activeItem === "Pencil" || activeItem === "Brush") {
 			ctx.moveTo(e.clientX - offsetX, e.clientY - offsetY)
 			if (activeItem === "Brush") ctx.lineWidth = 5 + 2 * props.strokeWidth
+			// socket
+			ctxSocket.moveTo(e.clientX - offsetX, e.clientY - offsetY)
+			if (activeItem === "Brush")
+				ctxSocket.lineWidth = 5 + 2 * props.strokeWidth
 		} else if (
 			activeItem === "Line" ||
 			activeItem === "Rectangle" ||
@@ -126,11 +166,15 @@ const Content = (props: {
 		} else if (activeItem === "Erase") {
 			ctx.strokeStyle = "white"
 			ctx.moveTo(e.clientX - offsetX, e.clientY - offsetY)
+			// socket
+			ctxSocket.strokeStyle = "white"
+			ctxSocket.moveTo(e.clientX - offsetX, e.clientY - offsetY)
 		}
-		props.socket.emit("startDrawing", {
-			color: activeItem === "Erase" ? "white" : props.color,
-			stroke: props.strokeWidth,
-		})
+
+		// props.socket.emit("startDrawing", {
+		// 	color: activeItem === "Erase" ? "white" : props.color,
+		// 	stroke: props.strokeWidth,
+		// })
 	}
 
 	const handleMouseMove = (e: {
@@ -168,6 +212,8 @@ const Content = (props: {
 				) {
 					ctx.lineTo(e.clientX - offsetX, e.clientY - offsetY)
 					ctx.stroke()
+					ctxSocket.lineTo(e.clientX - offsetX, e.clientY - offsetY)
+					ctxSocket.stroke()
 				}
 				if (props.activeItem === "Line") {
 					ctxOverlay.clearRect(0, 0, window.innerWidth, window.innerHeight)
@@ -260,6 +306,10 @@ const Content = (props: {
 			ctx.moveTo(startX, startY)
 			ctx.lineTo(e.clientX - offsetX, e.clientY - offsetY)
 			ctx.stroke()
+			// socket
+			ctxSocket.moveTo(startX, startY)
+			ctxSocket.lineTo(e.clientX - offsetX, e.clientY - offsetY)
+			ctxSocket.stroke()
 		}
 
 		if (props.activeItem === "Rectangle") {
@@ -267,6 +317,8 @@ const Content = (props: {
 			let height = e.clientY - offsetY - startY
 			ctxOverlay.clearRect(0, 0, window.innerWidth, window.innerHeight)
 			ctx.strokeRect(startX, startY, width, height)
+			// socket
+			ctxSocket.strokeRect(startX, startY, width, height)
 		}
 
 		if (props.activeItem === "Oval") {
@@ -297,6 +349,31 @@ const Content = (props: {
 				)
 			}
 			ctx.stroke()
+			// socket
+			ctxSocket.beginPath()
+			if (e.shiftKey) {
+				let radius = Math.min(Math.abs(width), Math.abs(height)) / 2
+				ctxSocket.ellipse(
+					startX + width / 2,
+					startY + height / 2,
+					radius,
+					radius,
+					0,
+					0,
+					2 * Math.PI
+				)
+			} else {
+				ctxSocket.ellipse(
+					startX + width / 2,
+					startY + height / 2,
+					Math.abs(width / 2),
+					Math.abs(height / 2),
+					0,
+					0,
+					2 * Math.PI
+				)
+			}
+			ctxSocket.stroke()
 		}
 
 		if (props.activeItem === "Fill") {
@@ -306,13 +383,20 @@ const Content = (props: {
 			const startY = e.clientY - offsetY
 			const splitColor = props.color.toString().slice(4, -1).split(",")
 			const fillColor = [splitColor[0], splitColor[1], splitColor[2]]
-			floodFill(ctx, startX, startY, fillColor)
+			floodFill(ctx, startX, startY, fillColor, ctxSocket)
 		}
 
 		ctx.closePath()
+		ctxSocket.closePath()
 		setIsDrawing(false)
 		if (props.socket) {
-			props.socket.emit("stopDrawing")
+			// props.socket.emit("stopDrawing")
+			// send data to socket
+			props.socket.emit(
+				"canvasData",
+				canvasSocketRef.current.toDataURL("image/png")
+			)
+			ctxSocket.clearRect(0, 0, window.innerWidth, window.innerHeight)
 		}
 	}
 
@@ -382,6 +466,12 @@ const Content = (props: {
 					width={window.innerWidth - 64}
 					height={(4 * window.innerHeight) / 5}
 					ref={canvasOverlayRef}
+				/>
+				<canvas
+					className='absolute invisible'
+					width={window.innerWidth - 64}
+					height={(4 * window.innerHeight) / 5}
+					ref={canvasSocketRef}
 				/>
 				<div
 					className={

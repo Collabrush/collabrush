@@ -35,6 +35,12 @@ const defaultToolbarItems = [
 const ReactPaint = (props: {
 	canvasElement: MutableRefObject<HTMLCanvasElement>
 	socket: Socket
+	buffer: string[]
+	setBuffer: Function
+	undoBuffer: string[]
+	setUndoBuffer: Function
+	redoBuffer: string[]
+	setRedoBuffer: Function
 }) => {
 	const [color, setColor] = useState("black")
 	const [strokeWidth, setStrokeWidth] = useState(1)
@@ -65,6 +71,12 @@ const ReactPaint = (props: {
 				strokeWidth={strokeWidth}
 				canvasElement={props.canvasElement}
 				socket={props.socket}
+				buffer={props.buffer}
+				setBuffer={props.setBuffer}
+				undoBuffer={props.undoBuffer}
+				setUndoBuffer={props.setUndoBuffer}
+				redoBuffer={props.redoBuffer}
+				setRedoBuffer={props.setRedoBuffer}
 			/>
 		</>
 	)

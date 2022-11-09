@@ -36,7 +36,10 @@ export const floodFill = (
 	},
 	x: any,
 	y: any,
-	fillColor: any
+	fillColor: any,
+	ctxSocket: {
+		putImageData: (arg0: any, arg1: number, arg2: number) => void
+	}
 ) => {
 	// read the pixels in the canvas
 	const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
@@ -63,6 +66,8 @@ export const floodFill = (
 
 		// put the data back
 		ctx.putImageData(imageData, 0, 0)
+		// socket
+		ctxSocket.putImageData(imageData, 0, 0)
 	}
 }
 
