@@ -39,7 +39,7 @@ function Dashboard(props: Props) {
 		;(async () => {
 			const { data, error } = await supabase
 				.from("boards")
-				.select("*")
+				.select("boardID,name,thumbnail")
 				.eq("creatorID", user.id)
 			if (error) {
 				console.log(error)
@@ -139,16 +139,17 @@ function Dashboard(props: Props) {
 									<div
 										key={collaboard.boardID}
 										className='w-56 h-44 rounded-lg group'
-										onClick={() => {
-											router.push(`/collaboard/${collaboard.boardID}`)
-										}}
 										style={{
 											backgroundImage: `url(${
-												collaboard.thumbnail ??
-												"https://witxacybuzwpgrvfoxmg.supabase.co/storage/v1/object/public/thumbnails/blank.png"
+												"https://witxacybuzwpgrvfoxmg.supabase.co/storage/v1/object/public/thumbnails/" +
+													collaboard.thumbnail ?? "blank.png"
 											})`,
 										}}>
-										<div className='inset-0 bg-black bg-opacity-25 rounded-lg flex items-center justify-center invisible group-hover:visible w-full h-full'>
+										<div
+											onClick={() => {
+												router.push(`/collaboard/${collaboard.boardID}`)
+											}}
+											className='inset-0 bg-black bg-opacity-25 rounded-lg flex cursor-pointer items-center justify-center invisible group-hover:visible w-full h-full'>
 											<div className='text-center'>
 												<div className='text-2xl font-bold text-white'>
 													{collaboard.name}

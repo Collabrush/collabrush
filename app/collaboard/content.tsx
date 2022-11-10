@@ -4,10 +4,15 @@
 import React, { MutableRefObject, useEffect, useRef, useState } from "react"
 import { Socket } from "socket.io-client"
 import floodFill from "../../utils/floodFill"
+import supabase from "../../utils/supabaseClient"
+import useInterval from "../../utils/useIntervalhook"
+import { decode } from "base64-arraybuffer"
 
 import Toolbox from "./toolbox"
+import dataURItoBlob from "../../utils/dataURItoblob"
 
 const Content = (props: {
+	board: any
 	activeItem: string
 	color: string | CanvasGradient | CanvasPattern
 	items: any
@@ -53,11 +58,14 @@ const Content = (props: {
 	const [ctxOverlay, setCtxOverlay] = useState<CanvasRenderingContext2D>()
 	const [ctxSocket, setCtxSocket] = useState<CanvasRenderingContext2D>()
 
+	const [autoSave, setAutoSave] = useState(false)
+
 	useEffect(() => {
 		if (
 			!canvasRef.current ||
 			!canvasOverlayRef.current ||
-			!canvasSocketRef.current
+			!canvasSocketRef.current ||
+			props.board.boardID == ""
 		)
 			return
 		props.canvasElement.current = canvasRef.current
@@ -71,7 +79,54 @@ const Content = (props: {
 		ctx.fillStyle = "white"
 		ctx.fillRect(0, 0, window.innerWidth, window.innerHeight)
 		ctx.stroke()
-	}, [canvasRef, canvasOverlayRef, canvasSocketRef, props.canvasElement])
+
+		// check if canvas data exists in storage
+		;(async () => {
+			const { data: canvasData, error } = await supabase.storage
+				.from("canvas")
+				.list()
+			if (error) {
+				console.log(error)
+			} else {
+				console.log(canvasData)
+				if (canvasData.length > 0) {
+					let imagePresent = false
+					canvasData.forEach(async (canvas) => {
+						console.log(props.board.boardID)
+						if (canvas.name == props.board.boardID + ".jpeg") {
+							imagePresent = true
+							const {
+								data: { signedUrl: url },
+							} = await supabase.storage
+								.from("canvas")
+								.createSignedUrl(canvas.name, 8)
+							if (error) {
+								console.log(error)
+							}
+							console.log(url)
+							const img = new Image()
+							img.crossOrigin = "anonymous"
+							img.onload = () => {
+								ctx.drawImage(img, 0, 0)
+							}
+							img.src = url
+							return
+						}
+					})
+					props.setUndoBuffer([canvasRef.current.toDataURL()])
+					setTimeout(() => {
+						setAutoSave(true)
+					}, 5000)
+				}
+			}
+		})()
+	}, [
+		canvasRef,
+		canvasOverlayRef,
+		canvasSocketRef,
+		props.canvasElement,
+		props.board,
+	])
 
 	useEffect(() => {
 		if (!ctx || isDrawing) return
@@ -86,6 +141,42 @@ const Content = (props: {
 			props.setBuffer(newBuffer)
 		}
 	}, [ctx, isDrawing, props.buffer])
+
+	// auto save canvas
+	useInterval(
+		async () => {
+			if (!ctx) return
+			// save canvas to supabase storage
+			const dataURL = canvasRef.current.toDataURL("image/jpeg", 0.05)
+			const dataURLHD = canvasRef.current.toDataURL("image/jpeg")
+			const { data: image, error } = await supabase.storage
+				.from("thumbnails")
+				.upload(props.board.boardID + ".jpeg", dataURItoBlob(dataURL), {
+					contentType: "image/jpeg",
+					upsert: true,
+				})
+			if (error) {
+				console.log("Error uploading thumbnail", error)
+			}
+			const { data: _image, error: error2 } = await supabase.storage
+				.from("canvas")
+				.upload(props.board.boardID + ".jpeg", dataURItoBlob(dataURLHD), {
+					contentType: "image/jpeg",
+					upsert: true,
+				})
+			if (error2) {
+				console.log("Error uploading thumbcanvas datanail", error)
+			}
+			const { data, error: _error } = await supabase
+				.from("boards")
+				.update({ thumbnail: image.path })
+				.eq("boardID", props.board.boardID)
+			if (_error) {
+				console.log("Error updating thumbnail", error)
+			}
+		},
+		autoSave ? 8000 : null
+	)
 
 	//helpers
 	const getPixelColor = (x: number, y: number) => {
@@ -398,6 +489,12 @@ const Content = (props: {
 			)
 			ctxSocket.clearRect(0, 0, window.innerWidth, window.innerHeight)
 		}
+		const newBuffer = props.undoBuffer
+		if (props.undoBuffer.length > 10) {
+			newBuffer.shift()
+		}
+		props.setUndoBuffer([...newBuffer, canvasRef.current.toDataURL()])
+		if (props.redoBuffer.length > 0) props.setRedoBuffer([])
 	}
 
 	const loadImageURL = (url: string) => {
@@ -435,6 +532,32 @@ const Content = (props: {
 				}
 				reader.readAsDataURL(_event[0])
 			}
+		} else if (method === "undo") {
+			if (props.undoBuffer.length > 0) {
+				const newBuffer = props.undoBuffer
+				const currState = newBuffer.pop()
+				props.setUndoBuffer(newBuffer)
+				props.setRedoBuffer([...props.redoBuffer, currState])
+				const img = new Image()
+				img.onload = () => {
+					ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
+					ctx.drawImage(img, 0, 0)
+				}
+				img.src = newBuffer[newBuffer.length - 1]
+			}
+		} else if (method === "redo") {
+			if (props.redoBuffer.length > 0) {
+				const newBuffer = props.redoBuffer
+				const newState = newBuffer.pop()
+				props.setRedoBuffer(newBuffer)
+				props.setUndoBuffer([...props.undoBuffer, newState])
+				const img = new Image()
+				img.onload = () => {
+					ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
+					ctx.drawImage(img, 0, 0)
+				}
+				img.src = newState
+			}
 		} else {
 			props.handleClick(_event, method, tool)
 		}
@@ -450,10 +573,10 @@ const Content = (props: {
 				setColor={props.setColor}
 				strokeWidth={props.strokeWidth}
 			/>
-			<div className='relative bg-[#C7B9FF] flex-grow lg:w-screen lg:overflow-hidden p-4 border-black border-4 w-min'>
+			<div className='relative bg-[#C7B9FF] flex-grow lg:w-[98vw] lg:overflow-hidden p-4 border-black border-4 w-min'>
 				<canvas
 					className={"mx-auto border-4 border-black " + cursor}
-					width={window.innerWidth - 64}
+					width={window.innerWidth - 128}
 					height={(4 * window.innerHeight) / 5}
 					ref={canvasRef}
 					id='canvas'
@@ -463,13 +586,13 @@ const Content = (props: {
 				/>
 				<canvas
 					className='absolute pointer-events-none top-0 m-4 mx-2'
-					width={window.innerWidth - 64}
+					width={window.innerWidth - 128}
 					height={(4 * window.innerHeight) / 5}
 					ref={canvasOverlayRef}
 				/>
 				<canvas
 					className='absolute invisible'
-					width={window.innerWidth - 64}
+					width={window.innerWidth - 128}
 					height={(4 * window.innerHeight) / 5}
 					ref={canvasSocketRef}
 				/>

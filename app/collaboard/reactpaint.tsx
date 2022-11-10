@@ -27,12 +27,13 @@ const defaultToolbarItems = [
 	{ name: "Erase", image: erase },
 	{ name: "Fill", image: fill },
 	{ name: "Rectangle", image: rectangle },
-	{ name: "Text", image: text },
+	// { name: "Text", image: text },
 	{ name: "Oval", image: circle },
 	{ name: "Picker", image: picker },
 ]
 
 const ReactPaint = (props: {
+	board: any
 	canvasElement: MutableRefObject<HTMLCanvasElement>
 	socket: Socket
 	buffer: string[]
@@ -61,8 +62,9 @@ const ReactPaint = (props: {
 
 	return (
 		<>
-			<MenuBar />
+			<MenuBar board={props.board} />
 			<Content
+				board={props.board}
 				items={toolbarItems}
 				activeItem={selectedItem}
 				handleClick={handleClick}

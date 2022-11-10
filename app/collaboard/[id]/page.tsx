@@ -2,10 +2,13 @@
 "use client"
 
 import React, { MutableRefObject, useEffect, useRef, useState } from "react"
-import useSocket from "../../utils/socket"
+import useSocket from "../../../utils/socket"
 import { useRouter } from "next/navigation"
-import Pointer from "./pointer"
-import ReactPaint from "./reactpaint"
+import Pointer from "../pointer"
+import ReactPaint from "../reactpaint"
+import { User } from "@supabase/supabase-js"
+import supabase from "../../../utils/supabaseClient"
+import { toast } from "react-toastify"
 
 function debounce(fn: Function, ms: number) {
 	let timer: any
@@ -22,7 +25,21 @@ function now() {
 	return new Date().getTime()
 }
 
-const Draw = () => {
+const Draw = ({ params }) => {
+	// Supabase States
+	const [boardId, setBoardID] = useState()
+	const [user, setUser] = useState<User>()
+	const [board, setBoard] = useState({
+		boardID: "",
+		name: "",
+		creatorID: "",
+		isPublic: false,
+		isViewOnly: false,
+		userAccess: {},
+	})
+	const [isLoading, setIsLoading] = useState(true)
+
+	// Paint States
 	const pointers = useRef<{
 		[key: string]: Node
 	}>({})
@@ -77,6 +94,44 @@ const Draw = () => {
 		"#71717A",
 		"#64748B",
 	]
+
+	useEffect(() => {
+		if (!router) return
+		;(async () => {
+			const user = await supabase.auth.getUser()
+			if (!user) {
+				router.push("/")
+			}
+			setUser(user.data.user)
+		})()
+		const boardId = params.id
+		if (boardId) {
+			setBoardID(boardId)
+		} else {
+			toast.error("Board ID not found")
+			router.push("/")
+		}
+	}, [params.id, router])
+
+	useEffect(() => {
+		if (!boardId) return
+		;(async () => {
+			const { data, error } = await supabase
+				.from("boards")
+				.select("*")
+				.eq("boardID", boardId)
+			if (error) {
+				toast.error("Error fetching board")
+				router.push("/")
+			}
+			if (data.length === 0) {
+				toast.error("Board not found")
+				router.push("/")
+			}
+			setBoard(data[0])
+			setIsLoading(false)
+		})()
+	}, [boardId, router])
 
 	// initialize socket on hot reload
 	useEffect(() => {
@@ -268,6 +323,7 @@ const Draw = () => {
 					handleMouseDown(e)
 				}}></canvas> */}
 			<ReactPaint
+				board={board}
 				canvasElement={canvasElement}
 				socket={socket}
 				buffer={buffer}
