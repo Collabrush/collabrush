@@ -24,11 +24,13 @@ function Dashboard(props: Props) {
 	const router = useRouter()
 
 	useEffect(() => {
-		if (!router) return
+		// if (!router) return;
 		;(async () => {
 			const user = await supabase.auth.getUser()
 			if (!user) {
 				router.push("/")
+				console.log("user not found")
+				return
 			}
 			setUser(user.data.user)
 		})()
@@ -69,7 +71,7 @@ function Dashboard(props: Props) {
 					<div className='absolute top-1/2 md:top-0 w-full flex flex-col md:flex-row items-center justify-end h-24 px-12 space-y-4 md:space-y-0 md:space-x-4 scale-[2] md:scale-100'>
 						<button
 							type='button'
-							className='inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500'
+							className='inline-flex items-center px-6 py-3 text-base font-medium text-white border border-transparent rounded-full shadow-sm bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500'
 							onClick={() => {
 								supabase.auth.signOut()
 								router.push("/")
@@ -81,89 +83,17 @@ function Dashboard(props: Props) {
 							onClick={() => {
 								router.push("/")
 							}}
-							className='inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500'>
+							className='inline-flex items-center px-6 py-3 text-base font-medium text-white border border-transparent rounded-full shadow-sm bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500'>
 							Home
 						</button>
 					</div>
-					<div className='flex flex-row space-x-5'>
-						<div className='text-2xl'>Dashboard</div>
-						<div>{user?.email}</div>
+					<div className='text-2xl text-black'>
+						Hey, {(user?.email).split("@")[0]}
 					</div>
-					<div className='text-xl'>Your Collaboards</div>
-					<div>
-						{collaboards.length === 0 ? (
-							<div className='text-center'>
-								<svg
-									className='mx-auto h-12 w-12 text-gray-400'
-									fill='none'
-									viewBox='0 0 24 24'
-									stroke='currentColor'
-									aria-hidden='true'>
-									<path
-										vectorEffect='non-scaling-stroke'
-										strokeLinecap='round'
-										strokeLinejoin='round'
-										strokeWidth={2}
-										d='M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z'
-									/>
-								</svg>
-								<h3 className='mt-2 text-sm font-medium text-gray-900'>
-									No projects
-								</h3>
-								<p className='mt-1 text-sm text-gray-500'>
-									Get started by creating a new project.
-								</p>
-								<div className='mt-6'>
-									<button
-										type='button'
-										className='inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'>
-										<svg
-											xmlns='http://www.w3.org/2000/svg'
-											viewBox='0 0 24 24'
-											fill='currentColor'
-											className='-ml-1 mr-2 h-5 w-5'
-											aria-hidden='true'>
-											<path
-												fillRule='evenodd'
-												d='M12 3.75a.75.75 0 01.75.75v6.75h6.75a.75.75 0 010 1.5h-6.75v6.75a.75.75 0 01-1.5 0v-6.75H4.5a.75.75 0 010-1.5h6.75V4.5a.75.75 0 01.75-.75z'
-												clipRule='evenodd'
-											/>
-										</svg>
-										New Project
-									</button>
-								</div>
-							</div>
-						) : (
-							<div className='grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3'>
-								{collaboards.map((collaboard) => (
-									<div
-										key={collaboard.boardID}
-										className='w-56 h-44 rounded-lg group'
-										style={{
-											backgroundImage: `url(${
-												"https://witxacybuzwpgrvfoxmg.supabase.co/storage/v1/object/public/thumbnails/" +
-													collaboard.thumbnail ?? "blank.png"
-											})`,
-										}}>
-										<div
-											onClick={() => {
-												router.push(`/collaboard/${collaboard.boardID}`)
-											}}
-											className='inset-0 bg-black bg-opacity-25 rounded-lg flex cursor-pointer items-center justify-center invisible group-hover:visible w-full h-full'>
-											<div className='text-center'>
-												<div className='text-2xl font-bold text-white'>
-													{collaboard.name}
-												</div>
-											</div>
-										</div>
-									</div>
-								))}
-							</div>
-						)}
-					</div>
+					<div className='text-xl text-black '>Your Collaboards</div>
 					<button
 						type='button'
-						className='inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500'
+						className='inline-flex items-center px-6 py-3 mt-8 text-base font-medium text-white border border-transparent rounded-full shadow-sm bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500'
 						onClick={async () => {
 							setIsCreatingCollaboard(true)
 							const { data: boards, error } = await supabase
@@ -189,7 +119,7 @@ function Dashboard(props: Props) {
 							<>
 								<svg
 									role='status'
-									className='mr-2 w-8 h-8 text-gray-200 animate-spin dark:text-gray-600 fill-white'
+									className='w-8 h-8 mr-2 text-gray-200 animate-spin dark:text-gray-600 fill-white'
 									viewBox='0 0 100 101'
 									fill='none'
 									xmlns='http://www.w3.org/2000/svg'>
@@ -208,6 +138,77 @@ function Dashboard(props: Props) {
 							"Create new collaboard"
 						)}
 					</button>
+					<div className='my-8'>
+						{collaboards.length === 0 ? (
+							<div className='text-center'>
+								<svg
+									className='w-12 h-12 mx-auto text-gray-400'
+									fill='none'
+									viewBox='0 0 24 24'
+									stroke='currentColor'
+									aria-hidden='true'>
+									<path
+										vectorEffect='non-scaling-stroke'
+										strokeLinecap='round'
+										strokeLinejoin='round'
+										strokeWidth={2}
+										d='M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z'
+									/>
+								</svg>
+								<h3 className='mt-2 text-sm font-medium text-gray-900'>
+									No projects
+								</h3>
+								<p className='mt-1 text-sm text-gray-500'>
+									Get started by creating a new project.
+								</p>
+								<div className='mt-6'>
+									<button
+										type='button'
+										className='inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'>
+										<svg
+											xmlns='http://www.w3.org/2000/svg'
+											viewBox='0 0 24 24'
+											fill='currentColor'
+											className='w-5 h-5 mr-2 -ml-1'
+											aria-hidden='true'>
+											<path
+												fillRule='evenodd'
+												d='M12 3.75a.75.75 0 01.75.75v6.75h6.75a.75.75 0 010 1.5h-6.75v6.75a.75.75 0 01-1.5 0v-6.75H4.5a.75.75 0 010-1.5h6.75V4.5a.75.75 0 01.75-.75z'
+												clipRule='evenodd'
+											/>
+										</svg>
+										New Project
+									</button>
+								</div>
+							</div>
+						) : (
+							<div className='grid min-[560px]:grid-cols-2 grid-cols-1 gap-4 md:grid-cols-3 min-[1240px]:grid-cols-5 lg:grid-cols-4 border-4 border-black bg-[#C7B9FF] p-4 mx-auto'>
+								{collaboards.map((collaboard) => (
+									<div
+										key={collaboard.boardID}
+										className='w-56 rounded-lg h-44 group'
+										style={{
+											backgroundImage: `url(${
+												"https://witxacybuzwpgrvfoxmg.supabase.co/storage/v1/object/public/thumbnails/" +
+													collaboard.thumbnail ?? "blank.png"
+											})`,
+										}}>
+										<div
+											onClick={() => {
+												router.push(`/collaboard/${collaboard.boardID}`)
+											}}
+											className='inset-0 flex items-center justify-center invisible w-full h-full bg-black bg-opacity-25 rounded-lg group-hover:visible'>
+											<div className='text-center'>
+												<div className='text-2xl font-bold text-white'>
+													{collaboard.name}
+												</div>
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
 				</div>
 			)}
 		</>
