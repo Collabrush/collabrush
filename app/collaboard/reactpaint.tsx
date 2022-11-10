@@ -34,7 +34,6 @@ const defaultToolbarItems = [
 
 const ReactPaint = (props: {
 	board: any
-	canvasElement: MutableRefObject<HTMLCanvasElement>
 	socket: Socket
 	buffer: string[]
 	setBuffer: Function
@@ -71,7 +70,6 @@ const ReactPaint = (props: {
 				color={color}
 				setColor={setColor}
 				strokeWidth={strokeWidth}
-				canvasElement={props.canvasElement}
 				socket={props.socket}
 				buffer={props.buffer}
 				setBuffer={props.setBuffer}

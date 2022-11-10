@@ -19,7 +19,6 @@ const Content = (props: {
 	handleClick: any
 	setColor: any
 	strokeWidth: number
-	canvasElement: MutableRefObject<HTMLCanvasElement>
 	socket: Socket
 	buffer: string[]
 	setBuffer: Function
@@ -68,7 +67,6 @@ const Content = (props: {
 			props.board.boardID == ""
 		)
 			return
-		props.canvasElement.current = canvasRef.current
 		let canvasRect = canvasRef.current.getBoundingClientRect()
 		const ctx = canvasRef.current.getContext("2d")
 		setCtx(ctx)
@@ -120,13 +118,7 @@ const Content = (props: {
 				}
 			}
 		})()
-	}, [
-		canvasRef,
-		canvasOverlayRef,
-		canvasSocketRef,
-		props.canvasElement,
-		props.board,
-	])
+	}, [canvasRef, canvasOverlayRef, canvasSocketRef, props.board])
 
 	useEffect(() => {
 		if (!ctx || isDrawing) return
