@@ -1,0 +1,212 @@
+.colorButton {
+	width: 2.6em;
+	height: 2.6em;
+	border-radius: 0.6em;
+	position: relative;
+	background-image: linear-gradient(to bottom, #dddddd, #d5d5d5);
+	box-shadow: inset 0 0.6px 1.4px 0px #fff,
+		inset 0 -1px 1px 0px rgba(0, 0, 0, 0.2),
+		0 1.08px 2.04px -0.4px rgba(0, 0, 0, 0.5);
+}
+.colorButton:before,
+.colorButton:after {
+	box-sizing: border-box;
+	display: block;
+}
+.colorButton:before {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	left: calc(50% - 1.3em);
+	top: calc(50% - 1.3em);
+	width: 2.5em;
+	height: 2.5em;
+	background-image: linear-gradient(to bottom, #ffffff, #aaaaaa);
+	-webkit-filter: blur(4px);
+}
+.colorButton:after {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	left: calc(50% - 1.1em);
+	top: calc(50% - 1.1em);
+	width: 2.2em;
+	height: 2.2em;
+	background-image: linear-gradient(to bottom, #c5c5c5, #dddddd 80%);
+	box-shadow: 0 0.8px 5.6px -2px rgba(0, 0, 0, 0.2);
+}
+
+.colorWheel,
+.colorColors,
+.colorColor {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	left: calc(50% - 0.95em);
+	top: calc(50% - 0.95em);
+	width: 1.9em;
+	height: 1.9em;
+}
+
+.colorWheel {
+	display: block;
+	z-index: 1;
+	box-shadow: inset 0 3.2px 6.4px 2.8px rgba(0, 0, 0, 0.7);
+}
+
+.colorColors {
+	list-style: none;
+	background: #ddd;
+	position: relative;
+	-webkit-filter: blur(2px);
+	transform: rotate(170deg) scaleX(-1);
+}
+
+.colorColor {
+	clip: rect(0px, 1.9em, 1.9em, 0.95em);
+}
+.colorColor:after {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	left: calc(50% - 0.95em);
+	top: calc(50% - 0.95em);
+	width: 1.9em;
+	height: 1.9em;
+	clip: rect(0px, 0.95em, 1.9em, 0px);
+}
+
+.colorColor:nth-child(1):after {
+	background-color: #9ed110;
+	z-index: 12;
+	transform: rotate(30deg);
+}
+
+.colorColor:nth-child(2):after {
+	background-color: #50b517;
+	z-index: 11;
+	transform: rotate(60deg);
+}
+
+.colorColor:nth-child(3):after {
+	background-color: #179067;
+	z-index: 10;
+	transform: rotate(90deg);
+}
+
+.colorColor:nth-child(4):after {
+	background-color: #476eaf;
+	z-index: 9;
+	transform: rotate(120deg);
+}
+
+.colorColor:nth-child(5):after {
+	background-color: #9f49ac;
+	z-index: 8;
+	transform: rotate(150deg);
+}
+
+.colorColor:nth-child(6):after {
+	background-color: #cc42a2;
+	z-index: 7;
+	transform: rotate(180deg);
+}
+
+.colorColor:nth-child(7):after {
+	background-color: #ff3ba7;
+	z-index: 6;
+	transform: rotate(180deg);
+}
+
+.colorColor:nth-child(8):after {
+	background-color: #ff5800;
+	z-index: 5;
+	transform: rotate(210deg);
+}
+
+.colorColor:nth-child(9):after {
+	background-color: #ff8100;
+	z-index: 4;
+	transform: rotate(240deg);
+}
+
+.colorColor:nth-child(10):after {
+	background-color: #feac00;
+	z-index: 3;
+	transform: rotate(270deg);
+}
+
+.colorColor:nth-child(11):after {
+	background-color: #ffcc00;
+	z-index: 2;
+	transform: rotate(300deg);
+}
+
+.colorColor:nth-child(12):after {
+	background-color: #ede604;
+	z-index: 1;
+	transform: rotate(330deg);
+}
+
+.colorColor:nth-child(n + 7) {
+	transform: rotate(180deg);
+}
+
+.colorCenter {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	left: calc(50% - 0.63em);
+	top: calc(50% - 0.63em);
+	width: 1.26em;
+	height: 1.26em;
+	z-index: 2;
+	background-image: linear-gradient(to bottom, #eeeeee, #cccccc);
+	box-shadow: inset 0 0.6px 1.4px 0px #fff, 0 5px 6px -1px rgba(0, 0, 0, 0.5);
+}
+.colorCenter:before {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	left: calc(50% - 0.42em);
+	top: calc(50% - 0.42em);
+	width: 0.84em;
+	height: 0.84em;
+	background-image: linear-gradient(to bottom, #ffffff 20%, #aaaaaa);
+	box-shadow: 0 1px 1.2px -1px rgba(0, 0, 0, 0.5);
+}
+.colorCenter:after {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	left: calc(50% - 0.3em);
+	top: calc(50% - 0.3em);
+	width: 0.6em;
+	height: 0.6em;
+	background-image: linear-gradient(to bottom, #aaaaaa, #f5f5f5 80%);
+	box-shadow: inset 0 -0.2px 0.16px 0px #fff;
+}
+
+.colorPin {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	left: calc(50% - 0.55em);
+	top: calc(50% - 0.55em);
+	width: 1.1em;
+	height: 1.1em;
+	z-index: -1;
+}
+.colorPin:after {
+	content: "";
+	width: 8px;
+	height: 8px;
+	transform: rotate(10deg) skew(40deg, 20deg);
+	box-shadow: inset 0px 0px 0.8px 1px rgba(0, 0, 0, 0.1),
+		0 0 3px 0.6px rgba(0, 0, 0, 0.2);
+	background: #fff;
+	position: absolute;
+	z-index: -1;
+	left: 1.2px;
+	top: 2px;
+}

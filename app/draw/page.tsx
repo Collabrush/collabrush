@@ -3,20 +3,9 @@
 
 import React, { MutableRefObject, useEffect, useRef, useState } from "react"
 import useSocket from "../../utils/socket"
-import { useRouter } from "next/router"
+import { useRouter } from "next/navigation"
 import Pointer from "./pointer"
-
-// function drawLine(
-// 	canvasContext: CanvasRenderingContext2D,
-// 	fromx: number,
-// 	fromy: number,
-// 	tox: number,
-// 	toy: number
-// ) {
-// 	canvasContext.moveTo(fromx, fromy)
-// 	canvasContext.lineTo(tox, toy)
-// 	canvasContext.stroke()
-// }
+import ReactPaint from "./reactpaint"
 
 function debounce(fn: Function, ms: number) {
 	let timer: any
@@ -55,8 +44,12 @@ const Draw = () => {
 		useRef<HTMLDivElement>() as MutableRefObject<HTMLDivElement>
 
 	const socket = useSocket("/")
-	const [drawing, setDrawing] = useState(false)
-	const [prevPos, setPrevPos] = useState({ x: 0, y: 0 })
+
+	// Data recieved from clients for drawing
+	const [buffer, setBuffer] = useState<string[]>([])
+	const [undoBuffer, setUndoBuffer] = useState<string[]>([])
+	const [redoBuffer, setRedoBuffer] = useState<string[]>([])
+
 	const [dimensions, setDimensions] = useState({
 		height: window.innerHeight,
 		width: window.innerWidth,
@@ -85,11 +78,13 @@ const Draw = () => {
 		"#64748B",
 	]
 
+	// initialize socket on hot reload
 	useEffect(() => {
 		if (!router || socket) return
-		router.reload()
+		router.refresh()
 	}, [router, socket])
 
+	// handle window resize
 	useEffect(() => {
 		const debouncedHandleResize = debounce(function handleResize() {
 			setDimensions({
@@ -105,6 +100,7 @@ const Draw = () => {
 		}
 	})
 
+	// socket events
 	useEffect(() => {
 		if (
 			!socket ||
@@ -176,29 +172,36 @@ const Draw = () => {
 			}
 		})
 
+		socket.on("canvasData", (data: any) => {
+			setBuffer([...buffer, data])
+		})
+
 		socket.on(
 			"moving",
 			(data: {
 				id: string
+				mx: number
+				my: number
 				x: number
 				y: number
 				drawing: boolean
+				tool: string
 				updated: number
 			}) => {
 				const dataPointer = pointers.current[data.id] as HTMLDivElement
 
-				dataPointer.style.left = Math.min(data.x, dimensions.height) + "px"
-				dataPointer.style.top = Math.min(data.y, dimensions.width) + "px"
+				dataPointer.style.left = Math.min(data.mx, dimensions.height) + "px"
+				dataPointer.style.top = Math.min(data.my, dimensions.width) + "px"
 				pointers.current = { ...pointers.current, [data.id]: dataPointer }
 
-				if (data.drawing && clients.current[data.id] && canvasContext) {
-					canvasContext.moveTo(
-						clients.current[data.id].x,
-						clients.current[data.id].y
-					)
-					canvasContext.lineTo(data.x, data.y)
-					canvasContext.stroke()
-				}
+				// if (data.drawing && clients.current[data.id] && canvasContext) {
+				// 	canvasContext.moveTo(
+				// 		clients.current[data.id].x,
+				// 		clients.current[data.id].y
+				// 	)
+				// 	canvasContext.lineTo(data.x, data.y)
+				// 	canvasContext.stroke()
+				// }
 
 				// clients.current[data.id] = data
 				// clients.current[data.id].updated = now()
@@ -225,6 +228,7 @@ const Draw = () => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [socket, canvasContext])
 
+	// initialize canvas context
 	useEffect(() => {
 		if (!canvasElement.current || !pointersElement.current) return
 		// const newCurrUserPointer = document.createElement("div")
@@ -235,51 +239,6 @@ const Draw = () => {
 		) as CanvasRenderingContext2D
 		setCanvasContext(ctx)
 	}, [canvasElement, pointersElement])
-
-	useEffect(() => {
-		if (!canvasElement.current || !canvasContext) return
-		canvasContext.fillStyle = "white"
-		canvasContext.fillRect(
-			0,
-			0,
-			canvasElement.current.width,
-			canvasElement.current.height
-		)
-	}, [canvasContext, canvasElement])
-
-	const handleMouseUp = (
-		e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
-	) => {
-		// canvasContext.closePath()
-		setDrawing(false)
-	}
-
-	const handleMouseMove = (
-		e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
-	) => {
-		// if (now() - lastEmit > 50) {
-		socket.emit("mousemove", {
-			x: e.pageX,
-			y: e.pageY,
-			drawing: drawing,
-		})
-		// lastEmit = now()
-		// }
-
-		if (drawing) {
-			canvasContext.moveTo(prevPos.x, prevPos.y)
-			canvasContext.lineTo(e.pageX, e.pageY)
-			canvasContext.stroke()
-			setPrevPos({ x: e.pageX, y: e.pageY })
-		}
-	}
-
-	const handleMouseDown = (
-		e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
-	) => {
-		setDrawing(true)
-		setPrevPos({ x: e.pageX, y: e.pageY })
-	}
 
 	return (
 		<div>
@@ -293,8 +252,8 @@ const Draw = () => {
 					</div>
 				))}
 			</div>
-			<div id='pointers' ref={pointersElement} className=''></div>
-			<canvas
+			<div id='pointers' ref={pointersElement} className='z-50'></div>
+			{/* <canvas
 				id='canvas'
 				width={dimensions.width}
 				height={dimensions.height}
@@ -307,7 +266,17 @@ const Draw = () => {
 				}}
 				onMouseDown={(e) => {
 					handleMouseDown(e)
-				}}></canvas>
+				}}></canvas> */}
+			<ReactPaint
+				canvasElement={canvasElement}
+				socket={socket}
+				buffer={buffer}
+				setBuffer={setBuffer}
+				undoBuffer={undoBuffer}
+				setUndoBuffer={setUndoBuffer}
+				redoBuffer={redoBuffer}
+				setRedoBuffer={setRedoBuffer}
+			/>
 			<div className='absolute bottom-0 h-fit w-full z-10 p-10'>
 				{/* DEBUGGING INNTERFACE */}
 				<div className='flex flex-row space-x-3 justify-evenly w-full'>
@@ -346,7 +315,14 @@ const Draw = () => {
 						className='text-white p-2 cursor-pointer h-fit'
 						style={{ backgroundColor: userColor.current }}
 						onClick={() => {
-							canvasContext.clearRect(
+							// canvasContext.clearRect(
+							// 	0,
+							// 	0,
+							// 	canvasElement.current.width,
+							// 	canvasElement.current.height
+							// )
+							canvasContext.fillStyle = "white"
+							canvasContext.fillRect(
 								0,
 								0,
 								canvasElement.current.width,
