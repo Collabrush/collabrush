@@ -1,37 +1,38 @@
 {
-  "name": "collabrush",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "nodemon",
-    "build": "next build && tsc --project tsconfig.server.json",
-    "start": "cross-env NODE_ENV=production node dist/server.js",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@next/font": "^13.0.2",
-    "@supabase/supabase-js": "^2.0.5",
-    "@types/express": "^4.17.14",
-    "cross-env": "^7.0.3",
-    "express": "^4.18.2",
-    "next": "13.0.1",
-    "react": "18.2.0",
-    "react-color": "^2.19.3",
-    "react-dom": "18.2.0",
-    "socket.io": "^4.5.3",
-    "socket.io-client": "^4.5.3"
-  },
-  "devDependencies": {
-    "@types/node": "18.11.7",
-    "@types/react": "18.0.24",
-    "@types/react-dom": "18.0.8",
-    "autoprefixer": "^10.4.13",
-    "eslint": "8.26.0",
-    "eslint-config-next": "13.0.1",
-    "nodemon": "^2.0.20",
-    "postcss": "^8.4.18",
-    "tailwindcss": "^3.2.1",
-    "ts-node": "^10.9.1",
-    "typescript": "4.8.4"
-  }
+	"name": "collabrush",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "nodemon",
+		"build": "next build && tsc --project tsconfig.server.json",
+		"start": "cross-env NODE_ENV=production node dist/server.js",
+		"lint": "next lint"
+	},
+	"dependencies": {
+		"@next/font": "^13.0.2",
+		"@supabase/supabase-js": "^2.0.5",
+		"@types/express": "^4.17.14",
+		"cross-env": "^7.0.3",
+		"express": "^4.18.2",
+		"next": "13.0.1",
+		"react": "18.2.0",
+		"react-color": "^2.19.3",
+		"react-dom": "18.2.0",
+		"react-toastify": "^9.1.1",
+		"socket.io": "^4.5.3",
+		"socket.io-client": "^4.5.3"
+	},
+	"devDependencies": {
+		"@types/node": "18.11.7",
+		"@types/react": "18.0.24",
+		"@types/react-dom": "18.0.8",
+		"autoprefixer": "^10.4.13",
+		"eslint": "8.26.0",
+		"eslint-config-next": "13.0.1",
+		"nodemon": "^2.0.20",
+		"postcss": "^8.4.18",
+		"tailwindcss": "^3.2.1",
+		"ts-node": "^10.9.1",
+		"typescript": "4.8.4"
+	}
 }

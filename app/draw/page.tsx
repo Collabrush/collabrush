@@ -3,7 +3,7 @@
 
 import React, { MutableRefObject, useEffect, useRef, useState } from "react"
 import useSocket from "../../utils/socket"
-import { useRouter } from "next/router"
+import { useRouter } from "next/navigation"
 import Pointer from "./pointer"
 import ReactPaint from "./reactpaint"
 
@@ -81,7 +81,7 @@ const Draw = () => {
 	// initialize socket on hot reload
 	useEffect(() => {
 		if (!router || socket) return
-		router.reload()
+		router.refresh()
 	}, [router, socket])
 
 	// handle window resize
@@ -171,20 +171,6 @@ const Draw = () => {
 				},
 			}
 		})
-
-		// socket.on(
-		// 	"startDrawing",
-		// 	(data: { id: string; color: string; stroke: number }) => {
-		// 		if (data.id === socket.id) return
-		// 		canvasContext.strokeStyle = data.color
-		// 		canvasContext.lineWidth = data.stroke
-		// 		canvasContext.beginPath()
-		// 	}
-		// )
-
-		// socket.on("stopDrawing", () => {
-		// 	canvasContext.closePath()
-		// })
 
 		socket.on("canvasData", (data: any) => {
 			setBuffer([...buffer, data])
