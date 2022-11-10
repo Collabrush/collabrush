@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-head-element */
 import "../styles/globals.css"
 
 export default function RootLayout({
@@ -10,7 +11,7 @@ export default function RootLayout({
 	return (
 		<html lang='en'>
 			<head>
-				<title>Next.js</title>
+				<title>Collabrush</title>
 			</head>
 			<body>{children}</body>
 		</html>
