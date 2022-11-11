@@ -17,6 +17,7 @@ function Dashboard(props: Props) {
 	const [isLoading, setLoading] = useState(true)
 	const [user, setUser] = useState<User>(null)
 	const [collaboards, setCollaboards] = useState([])
+	const [sharedCollaboards, setSharedCollaboards] = useState([])
 
 	// functionality states
 	const [isCreatingCollaboard, setIsCreatingCollaboard] = useState(false)
@@ -50,6 +51,21 @@ function Dashboard(props: Props) {
 			}
 			console.log(data)
 			setCollaboards(data)
+
+			const { data: sharedData, error: sharedError } = await supabase
+				.from("writeAccess")
+				.select("*")
+				.eq("email", user.email)
+			if (sharedError) {
+				console.log(sharedError)
+				toast.error("Error loading shared collaboards")
+				return
+			}
+			console.log(sharedData)
+			const boards = sharedData.map((board) => board.board)
+			console.log(boards)
+			setSharedCollaboards(boards)
+
 			setLoading(false)
 		})()
 	}, [user])
@@ -102,7 +118,6 @@ function Dashboard(props: Props) {
 									creatorID: user.id,
 									isPublic: false,
 									isViewOnly: false,
-									userAccess: {},
 								})
 								.select()
 							if (error) {

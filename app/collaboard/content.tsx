@@ -1,7 +1,14 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client"
 
-import React, { MutableRefObject, useEffect, useRef, useState } from "react"
+import React, {
+	MutableRefObject,
+	TouchEvent,
+	TouchEventHandler,
+	useEffect,
+	useRef,
+	useState,
+} from "react"
 import { Socket } from "socket.io-client"
 import floodFill from "../../utils/floodFill"
 import supabase from "../../utils/supabaseClient"
@@ -184,6 +191,7 @@ const Content = (props: {
 		)
 	}
 
+	// computer event handlers
 	const handleMouseDown = (e: { clientX: number; clientY: number }) => {
 		let activeItem = props.activeItem
 		if (editingImage) {
@@ -489,6 +497,331 @@ const Content = (props: {
 		if (props.redoBuffer.length > 0) props.setRedoBuffer([])
 	}
 
+	// computer event handlers
+	const handleTouchStart: TouchEventHandler<HTMLCanvasElement> = (
+		e: TouchEvent<HTMLCanvasElement>
+	) => {
+		let activeItem = props.activeItem
+		const clientX = e.targetTouches[0]
+			? e.targetTouches[0].pageX
+			: e.changedTouches[e.changedTouches.length - 1].pageX
+		const clientY = e.targetTouches[0]
+			? e.targetTouches[0].pageY
+			: e.changedTouches[e.changedTouches.length - 1].pageY
+		if (editingImage) {
+			// check if click is outside image which is in contextOverlay
+			if (
+				clientX < imagePosition.x ||
+				clientX > imagePosition.x2 ||
+				clientY < imagePosition.y ||
+				clientY > imagePosition.y2
+			) {
+				setEditingImage(false)
+				setCursor("cursor-crosshair")
+				ctxOverlay.clearRect(
+					imagePosition.x,
+					imagePosition.y,
+					imagePosition.x2 - imagePosition.x,
+					imagePosition.y2 - imagePosition.y
+				)
+				ctx.drawImage(imageData, imagePosition.x, imagePosition.y)
+				return
+			} else {
+				setCursor("cursor-grabbing")
+				setImageOffset({
+					offsetX: clientX - imagePosition.x,
+					offsetY: clientY - imagePosition.y,
+				})
+			}
+		}
+		if (activeItem === "Picker") {
+			const color = getPixelColor(clientX - offsetX, clientY - offsetY)
+			props.setColor(color)
+			props.handleClick(null, "changeTool", "Brush")
+			return
+		}
+		setIsDrawing(true)
+		ctx.beginPath()
+		ctx.strokeStyle = props.color
+		ctx.lineWidth = props.strokeWidth
+		ctx.lineJoin = ctx.lineCap = "round"
+		// socket
+		ctxSocket.beginPath()
+		ctxSocket.strokeStyle = props.color
+		ctxSocket.lineWidth = props.strokeWidth
+		ctxSocket.lineJoin = ctx.lineCap = "round"
+
+		if (activeItem === "Pencil" || activeItem === "Brush") {
+			ctx.moveTo(clientX - offsetX, clientY - offsetY)
+			if (activeItem === "Brush") ctx.lineWidth = 5 + 2 * props.strokeWidth
+			// socket
+			ctxSocket.moveTo(clientX - offsetX, clientY - offsetY)
+			if (activeItem === "Brush")
+				ctxSocket.lineWidth = 5 + 2 * props.strokeWidth
+		} else if (
+			activeItem === "Line" ||
+			activeItem === "Rectangle" ||
+			activeItem === "Oval"
+		) {
+			ctxOverlay.strokeStyle = props.color
+			ctxOverlay.lineWidth = props.strokeWidth
+			ctxOverlay.lineJoin = ctx.lineCap = "round"
+			setStartX(clientX - offsetX)
+			setStartY(clientY - offsetY)
+		} else if (activeItem === "Erase") {
+			ctx.strokeStyle = "white"
+			ctx.moveTo(clientX - offsetX, clientY - offsetY)
+			// socket
+			ctxSocket.strokeStyle = "white"
+			ctxSocket.moveTo(clientX - offsetX, clientY - offsetY)
+		}
+		e.preventDefault()
+
+		// props.socket.emit("startDrawing", {
+		// 	color: activeItem === "Erase" ? "white" : props.color,
+		// 	stroke: props.strokeWidth,
+		// })
+	}
+
+	const handleTouchMove: TouchEventHandler<HTMLCanvasElement> = (
+		e: TouchEvent<HTMLCanvasElement>
+	) => {
+		const clientX = e.targetTouches[0]
+			? e.targetTouches[0].pageX
+			: e.changedTouches[e.changedTouches.length - 1].pageX
+		const clientY = e.targetTouches[0]
+			? e.targetTouches[0].pageY
+			: e.changedTouches[e.changedTouches.length - 1].pageY
+		if (isDrawing) {
+			if (editingImage) {
+				// check if mouse is over image
+				if (
+					clientX > imagePosition.x &&
+					clientX < imagePosition.x2 &&
+					clientY > imagePosition.y &&
+					clientY < imagePosition.y2
+				) {
+					ctxOverlay.clearRect(0, 0, window.innerWidth, window.innerHeight)
+					ctxOverlay.drawImage(
+						imageData,
+						clientX - imageOffset.offsetX,
+						clientY - imageOffset.offsetY
+					)
+					setImagePosition({
+						x: clientX - imageOffset.offsetX,
+						y: clientY - imageOffset.offsetY,
+						x2: clientX - imageOffset.offsetX + imageData.width,
+						y2: clientY - imageOffset.offsetY + imageData.height,
+					})
+				}
+			} else {
+				if (
+					props.activeItem === "Pencil" ||
+					props.activeItem === "Brush" ||
+					props.activeItem === "Erase"
+				) {
+					ctx.lineTo(clientX - offsetX, clientY - offsetY)
+					ctx.stroke()
+					ctxSocket.lineTo(clientX - offsetX, clientY - offsetY)
+					ctxSocket.stroke()
+				}
+				if (props.activeItem === "Line") {
+					ctxOverlay.clearRect(0, 0, window.innerWidth, window.innerHeight)
+					ctxOverlay.beginPath()
+					ctxOverlay.moveTo(startX, startY)
+					ctxOverlay.lineTo(clientX - offsetX, clientY - offsetY)
+					ctxOverlay.stroke()
+					ctxOverlay.closePath()
+				}
+				if (props.activeItem === "Rectangle") {
+					ctxOverlay.clearRect(0, 0, window.innerWidth, window.innerHeight)
+					let width = clientX - offsetX - startX
+					let height = clientY - offsetY - startY
+					ctxOverlay.strokeRect(startX + 2, startY + 2, width + 2, height + 2)
+				}
+				if (props.activeItem === "Oval") {
+					ctxOverlay.clearRect(0, 0, window.innerWidth, window.innerHeight)
+					let width = clientX - offsetX - startX
+					let height = clientY - offsetY - startY
+					ctxOverlay.beginPath()
+					if (e.shiftKey) {
+						let radius = Math.min(Math.abs(width), Math.abs(height)) / 2
+						ctxOverlay.ellipse(
+							startX + width / 2 + 2,
+							startY + height / 2 + 2,
+							radius + 2,
+							radius + 2,
+							0,
+							0,
+							2 * Math.PI
+						)
+					} else {
+						ctxOverlay.ellipse(
+							startX + width / 2 + 2,
+							startY + height / 2 + 2,
+							Math.abs(width / 2) + 2,
+							Math.abs(height / 2) + 2,
+							0,
+							0,
+							2 * Math.PI
+						)
+					}
+					ctxOverlay.stroke()
+					ctxOverlay.closePath()
+				}
+			}
+		} else {
+			if (props.activeItem === "Picker") {
+				const color = getPixelColor(clientX - offsetX, clientY - offsetY)
+				pickerRef.current.style.backgroundColor = color
+				pickerRef.current.style.top = clientY - offsetY - 60 + "px"
+				pickerRef.current.style.left = clientX - offsetX + 50 + "px"
+			}
+		}
+		if (props.socket) {
+			props.socket.emit("mousemove", {
+				mx: clientX,
+				my: clientY,
+				x: clientX - offsetX,
+				y: clientY - offsetY,
+				drawing: isDrawing,
+				tool: props.activeItem,
+			})
+		}
+		e.preventDefault()
+	}
+
+	const handleTouchEnd: TouchEventHandler<HTMLCanvasElement> = (
+		e: TouchEvent<HTMLCanvasElement>
+	) => {
+		const clientX = e.targetTouches[0]
+			? e.targetTouches[0].pageX
+			: e.changedTouches[e.changedTouches.length - 1].pageX
+		const clientY = e.targetTouches[0]
+			? e.targetTouches[0].pageY
+			: e.changedTouches[e.changedTouches.length - 1].pageY
+		if (editingImage) {
+			// check if click is outside image which is in contextOverlay
+			if (
+				clientX < imagePosition.x ||
+				clientX > imagePosition.x2 ||
+				clientY < imagePosition.y ||
+				clientY > imagePosition.y2
+			) {
+				setEditingImage(false)
+				setCursor("cursor-crosshair")
+				return
+			} else {
+				setCursor("cursor-grab")
+			}
+		}
+
+		if (props.activeItem === "Line") {
+			ctxOverlay.clearRect(0, 0, window.innerWidth, window.innerHeight)
+			ctx.moveTo(startX, startY)
+			ctx.lineTo(clientX - offsetX, clientY - offsetY)
+			ctx.stroke()
+			// socket
+			ctxSocket.moveTo(startX, startY)
+			ctxSocket.lineTo(clientX - offsetX, clientY - offsetY)
+			ctxSocket.stroke()
+		}
+
+		if (props.activeItem === "Rectangle") {
+			let width = clientX - offsetX - startX
+			let height = clientY - offsetY - startY
+			ctxOverlay.clearRect(0, 0, window.innerWidth, window.innerHeight)
+			ctx.strokeRect(startX, startY, width, height)
+			// socket
+			ctxSocket.strokeRect(startX, startY, width, height)
+		}
+
+		if (props.activeItem === "Oval") {
+			let width = clientX - offsetX - startX
+			let height = clientY - offsetY - startY
+			ctxOverlay.clearRect(0, 0, window.innerWidth, window.innerHeight)
+			ctx.beginPath()
+			if (e.shiftKey) {
+				let radius = Math.min(Math.abs(width), Math.abs(height)) / 2
+				ctx.ellipse(
+					startX + width / 2,
+					startY + height / 2,
+					radius,
+					radius,
+					0,
+					0,
+					2 * Math.PI
+				)
+			} else {
+				ctx.ellipse(
+					startX + width / 2,
+					startY + height / 2,
+					Math.abs(width / 2),
+					Math.abs(height / 2),
+					0,
+					0,
+					2 * Math.PI
+				)
+			}
+			ctx.stroke()
+			// socket
+			ctxSocket.beginPath()
+			if (e.shiftKey) {
+				let radius = Math.min(Math.abs(width), Math.abs(height)) / 2
+				ctxSocket.ellipse(
+					startX + width / 2,
+					startY + height / 2,
+					radius,
+					radius,
+					0,
+					0,
+					2 * Math.PI
+				)
+			} else {
+				ctxSocket.ellipse(
+					startX + width / 2,
+					startY + height / 2,
+					Math.abs(width / 2),
+					Math.abs(height / 2),
+					0,
+					0,
+					2 * Math.PI
+				)
+			}
+			ctxSocket.stroke()
+		}
+
+		if (props.activeItem === "Fill") {
+			const color = getPixelColor(clientX - offsetX, clientY - offsetY)
+			if (color === props.color) return
+			const startX = clientX - offsetX
+			const startY = clientY - offsetY
+			const splitColor = props.color.toString().slice(4, -1).split(",")
+			const fillColor = [splitColor[0], splitColor[1], splitColor[2]]
+			floodFill(ctx, startX, startY, fillColor, ctxSocket)
+		}
+
+		ctx.closePath()
+		ctxSocket.closePath()
+		setIsDrawing(false)
+		if (props.socket) {
+			// props.socket.emit("stopDrawing")
+			// send data to socket
+			props.socket.emit(
+				"canvasData",
+				canvasSocketRef.current.toDataURL("image/png")
+			)
+			ctxSocket.clearRect(0, 0, window.innerWidth, window.innerHeight)
+		}
+		const newBuffer = props.undoBuffer
+		if (props.undoBuffer.length > 10) {
+			newBuffer.shift()
+		}
+		props.setUndoBuffer([...newBuffer, canvasRef.current.toDataURL()])
+		if (props.redoBuffer.length > 0) props.setRedoBuffer([])
+		e.preventDefault()
+	}
+
 	const loadImageURL = (url: string) => {
 		var image = document.createElement("img")
 		image.addEventListener("load", function () {
@@ -556,8 +889,9 @@ const Content = (props: {
 	}
 
 	return (
-		<div className='flex flex-col h-full'>
+		<div className='flex flex-col h-full overflow-hidden'>
 			<Toolbox
+				boardId={props.board.boardID}
 				items={props.items}
 				activeItem={props.activeItem}
 				handleClick={handleToolBoxClick}
@@ -565,7 +899,7 @@ const Content = (props: {
 				setColor={props.setColor}
 				strokeWidth={props.strokeWidth}
 			/>
-			<div className='relative bg-[#C7B9FF] flex-grow lg:w-[98vw] lg:overflow-hidden p-4 border-black border-4 w-min'>
+			<div className='relative bg-[#C7B9FF] flex-grow w-screen lg:overflow-hidden p-4 border-black border-4'>
 				<canvas
 					className={"mx-auto border-4 border-black " + cursor}
 					width={window.innerWidth - 128}
@@ -575,6 +909,9 @@ const Content = (props: {
 					onMouseDown={handleMouseDown}
 					onMouseMove={handleMouseMove}
 					onMouseUp={handleMouseUp}
+					onTouchStart={handleTouchStart}
+					onTouchMove={handleTouchMove}
+					onTouchEnd={handleTouchEnd}
 				/>
 				<canvas
 					className='absolute pointer-events-none top-0 m-4 mx-2'

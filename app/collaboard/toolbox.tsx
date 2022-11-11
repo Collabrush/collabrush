@@ -1,7 +1,8 @@
+/* eslint-disable jsx-a11y/role-has-required-aria-props */
 "use client"
 
 import Image from "next/image"
-import React, { MouseEvent, useRef } from "react"
+import React, { MouseEvent, useEffect, useRef, useState } from "react"
 import ColorPanel from "./colorpanel"
 
 import share from "./images/share.svg"
@@ -9,6 +10,8 @@ import download from "./images/download.svg"
 import undo from "./images/undo.svg"
 import redo from "./images/redo.svg"
 import image from "./images/image.svg"
+import { toast } from "react-toastify"
+import supabase from "../../utils/supabaseClient"
 
 const Button = (props: {
 	image: any
@@ -42,6 +45,7 @@ const Button = (props: {
 }
 
 const Toolbox = (props: {
+	boardId: string
 	activeItem: any
 	items: any
 	color: any
@@ -50,6 +54,9 @@ const Toolbox = (props: {
 	strokeWidth: number
 }) => {
 	const imageInput = useRef<HTMLInputElement>(null)
+	const [showCollaborators, setShowCollaborators] = useState(false)
+	const [collaborators, setCollaborators] = useState([])
+	const [email, setEmail] = useState("")
 
 	const items = props.items.map((item: { name: any; image: any }) => (
 		<Button
@@ -61,17 +68,30 @@ const Toolbox = (props: {
 		/>
 	))
 
+	useEffect(() => {
+		if (!props.boardId) return
+		;(async () => {
+			const { data, error } = await supabase
+				.from("writeAccess")
+				.select("*")
+				.eq("boardID", props.boardId)
+			if (error) {
+				toast.error(error.message)
+			} else {
+				const collabs = data.map((item: { email: any }) => item.email)
+				setCollaborators(collabs)
+				console.log(data)
+			}
+		})()
+	}, [props.boardId])
+
 	const changeColor = (color: string) => {
 		props.setColor(color)
 	}
 
 	const handleShare = () => {
-		const canvas = document.getElementById("canvas") as HTMLCanvasElement
-		const dataURL = canvas.toDataURL("image/png")
-		const link = document.createElement("a")
-		link.download = "image.png"
-		link.href = dataURL
-		link.click()
+		navigator.clipboard.writeText(window.location.href)
+		toast.success("Link Copied to clipboard!")
 	}
 
 	const handleDownload = () => {
@@ -152,6 +172,78 @@ const Toolbox = (props: {
 				</div>
 			</div>
 			<div className='flex justify-end space-x-4'>
+				<div className='relative'>
+					<div
+						className='p-2 py-1.5 h-fit my-auto bg-blue-400 text-md font-semibold'
+						onClick={() => {
+							setShowCollaborators(!showCollaborators)
+						}}>
+						Collaborators
+					</div>
+					<div
+						className={`absolute mt-8 -ml-12 z-50 ${
+							showCollaborators ? "" : "hidden"
+						}`}>
+						<div className='mx-auto max-w-xl min-w-[10rem] transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all'>
+							<div className='relative flex'>
+								<input
+									type='text'
+									className='h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-800 placeholder-gray-400 focus:ring-0 sm:text-sm'
+									placeholder='Add new collaborator email'
+									role='combobox'
+									aria-expanded='false'
+									aria-controls='options'
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+								/>
+								<button
+									className='bg-blue-200 p-1 rounded'
+									type='button'
+									onClick={async () => {
+										const { data, error } = await supabase
+											.from("writeAccess")
+											.insert([
+												{
+													boardID: props.boardId,
+													email: email,
+												},
+											])
+											.select("*")
+										if (error) {
+											console.log(error)
+										} else {
+											setEmail("")
+											if (data[0])
+												setCollaborators([
+													...collaborators,
+													(data[0] as any).email,
+												])
+										}
+									}}>
+									Add
+								</button>
+							</div>
+
+							<ul
+								className='max-h-72 scroll-py-2 overflow-y-auto py-2 text-sm text-gray-800'
+								id='options'
+								role='listbox'>
+								{collaborators.map((collaborator) => {
+									return (
+										<li
+											className='cursor-default select-none px-4 py-2'
+											id={collaborator}
+											key={collaborator}
+											role='option'
+											tabIndex={-1}>
+											{collaborator}
+										</li>
+									)
+								})}
+							</ul>
+						</div>
+					</div>
+				</div>
 				<div className='grid grid-flow-col grid-rows-2 gap-0 px-2 mr-2 border-black rounded-lg border-x-2'>
 					<Button
 						active={props.activeItem === "Share" ? true : false}
