@@ -2,10 +2,14 @@
 "use client"
 
 import React, { MutableRefObject, useEffect, useRef, useState } from "react"
-import useSocket from "../../utils/socket"
+import useSocket from "../../../utils/socket"
 import { useRouter } from "next/navigation"
-import Pointer from "./pointer"
-import ReactPaint from "./reactpaint"
+import Pointer from "../pointer"
+import ReactPaint from "../reactpaint"
+import { User } from "@supabase/supabase-js"
+import supabase from "../../../utils/supabaseClient"
+import { toast } from "react-toastify"
+import { Socket } from "socket.io-client"
 
 function debounce(fn: Function, ms: number) {
 	let timer: any
@@ -22,7 +26,21 @@ function now() {
 	return new Date().getTime()
 }
 
-const Draw = () => {
+const Draw = ({ params }) => {
+	// Supabase States
+	const [boardId, setBoardID] = useState()
+	const [user, setUser] = useState<User>()
+	const [board, setBoard] = useState({
+		boardID: "",
+		name: "",
+		creatorID: "",
+		isPublic: false,
+		isViewOnly: false,
+		userAccess: {},
+	})
+	const [isLoading, setIsLoading] = useState(true)
+
+	// Paint States
 	const pointers = useRef<{
 		[key: string]: Node
 	}>({})
@@ -37,9 +55,6 @@ const Draw = () => {
 	}>({})
 	const userColor = useRef<string>("#3B82F6")
 	// const [currUserPointer, setCurrUserPointer] = useState<HTMLDivElement>()
-	const canvasElement =
-		useRef<HTMLCanvasElement>() as MutableRefObject<HTMLCanvasElement>
-	const [canvasContext, setCanvasContext] = useState<CanvasRenderingContext2D>()
 	const pointersElement =
 		useRef<HTMLDivElement>() as MutableRefObject<HTMLDivElement>
 
@@ -78,11 +93,49 @@ const Draw = () => {
 		"#64748B",
 	]
 
-	// initialize socket on hot reload
 	useEffect(() => {
-		if (!router || socket) return
-		router.refresh()
-	}, [router, socket])
+		if (!router) return
+		;(async () => {
+			const user = await supabase.auth.getUser()
+			if (!user) {
+				router.push("/")
+			}
+			setUser(user.data.user)
+		})()
+		const boardId = params.id
+		if (boardId) {
+			setBoardID(boardId)
+		} else {
+			toast.error("Board ID not found")
+			router.push("/")
+		}
+	}, [params.id, router])
+
+	useEffect(() => {
+		if (!boardId) return
+		;(async () => {
+			const { data, error } = await supabase
+				.from("boards")
+				.select("*")
+				.eq("boardID", boardId)
+			if (error) {
+				toast.error("Error fetching board")
+				router.push("/")
+			}
+			if (data.length === 0) {
+				toast.error("Board not found")
+				router.push("/")
+			}
+			setBoard(data[0])
+			setIsLoading(false)
+		})()
+	}, [boardId, router])
+
+	// // initialize socket on hot reload
+	// useEffect(() => {
+	// 	if (!router || socket) return
+	// 	router.refresh()
+	// }, [router, socket])
 
 	// handle window resize
 	useEffect(() => {
@@ -102,13 +155,13 @@ const Draw = () => {
 
 	// socket events
 	useEffect(() => {
-		if (
-			!socket ||
-			// !currUserPointer ||
-			!canvasContext ||
-			!pointersElement.current
-		)
-			return
+		console.log(socket, pointersElement.current)
+
+		if (!socket || !pointersElement.current) return
+
+		console.log("socket connected")
+
+		socket.emit("join", boardId)
 
 		socket.on(
 			"users",
@@ -118,7 +171,7 @@ const Draw = () => {
 					color: string
 				}[]
 			) => {
-				// console.log(users)
+				console.log(users)
 				const newPointers = {}
 				const newClients = {}
 				users.forEach((user) => {
@@ -226,19 +279,7 @@ const Draw = () => {
 			}
 		})
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [socket, canvasContext])
-
-	// initialize canvas context
-	useEffect(() => {
-		if (!canvasElement.current || !pointersElement.current) return
-		// const newCurrUserPointer = document.createElement("div")
-		// newCurrUserPointer.appendChild()
-		// setCurrUserPointer(newCurrUserPointer)
-		const ctx = canvasElement.current.getContext(
-			"2d"
-		) as CanvasRenderingContext2D
-		setCanvasContext(ctx)
-	}, [canvasElement, pointersElement])
+	}, [socket])
 
 	return (
 		<div>
@@ -268,7 +309,7 @@ const Draw = () => {
 					handleMouseDown(e)
 				}}></canvas> */}
 			<ReactPaint
-				canvasElement={canvasElement}
+				board={board}
 				socket={socket}
 				buffer={buffer}
 				setBuffer={setBuffer}
@@ -277,62 +318,44 @@ const Draw = () => {
 				redoBuffer={redoBuffer}
 				setRedoBuffer={setRedoBuffer}
 			/>
-			<div className='absolute bottom-0 h-fit w-full z-10 p-10'>
-				{/* DEBUGGING INNTERFACE */}
-				<div className='flex flex-row space-x-3 justify-evenly w-full'>
-					<span
-						className='text-white h-fit p-2'
-						style={{ backgroundColor: userColor.current }}>
-						Id: {socket?.id}
-					</span>
-					<div className='flex flex-col'>
-						<div
-							className='text-white p-2'
+			{process.env.NODE_ENV === "development" && (
+				<div className='absolute bottom-0 h-fit w-full z-10 p-10'>
+					{/* DEBUGGING INNTERFACE */}
+					<div className='flex flex-row space-x-3 justify-evenly w-full'>
+						<span
+							className='text-white h-fit p-2'
 							style={{ backgroundColor: userColor.current }}>
-							Clients
+							Id: {socket?.id}
+						</span>
+						<div className='flex flex-col'>
+							<div
+								className='text-white p-2'
+								style={{ backgroundColor: userColor.current }}>
+								Clients
+							</div>
+							<div className='bg-blue-100 p-2'>
+								{Object.keys(clients.current).map((id) => (
+									<div key={id}>{id}</div>
+								))}
+								{/* {JSON.stringify(clients.current)} */}
+							</div>
 						</div>
-						<div className='bg-blue-100 p-2'>
-							{Object.keys(clients.current).map((id) => (
-								<div key={id}>{id}</div>
-							))}
-							{/* {JSON.stringify(clients.current)} */}
+						<div className='flex flex-col'>
+							<div
+								className='text-white p-2'
+								style={{ backgroundColor: userColor.current }}>
+								Pointers
+							</div>
+							<div className='bg-blue-100 p-2'>
+								{Object.keys(pointers.current).map((id) => (
+									<div key={id}>{id}</div>
+								))}
+								{/* {JSON.stringify(pointers.current)} */}
+							</div>
 						</div>
-					</div>
-					<div className='flex flex-col'>
-						<div
-							className='text-white p-2'
-							style={{ backgroundColor: userColor.current }}>
-							Pointers
-						</div>
-						<div className='bg-blue-100 p-2'>
-							{Object.keys(pointers.current).map((id) => (
-								<div key={id}>{id}</div>
-							))}
-							{/* {JSON.stringify(pointers.current)} */}
-						</div>
-					</div>
-					<div
-						className='text-white p-2 cursor-pointer h-fit'
-						style={{ backgroundColor: userColor.current }}
-						onClick={() => {
-							// canvasContext.clearRect(
-							// 	0,
-							// 	0,
-							// 	canvasElement.current.width,
-							// 	canvasElement.current.height
-							// )
-							canvasContext.fillStyle = "white"
-							canvasContext.fillRect(
-								0,
-								0,
-								canvasElement.current.width,
-								canvasElement.current.height
-							)
-						}}>
-						Clear canvas
 					</div>
 				</div>
-			</div>
+			)}
 		</div>
 	)
 }

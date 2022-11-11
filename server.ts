@@ -41,27 +41,37 @@ nextApp.prepare().then(async () => {
 	})
 
 	io.on("connection", (socket: socketio.Socket) => {
-		console.log("connected " + socket.id)
-
 		// Assign color to new connected socket user
 		const socketColor =
 			pointerColors[Math.floor(Math.random() * pointerColors.length)]
 
 		socket.data.color = socketColor
 
-		// send array of already connected users
-		const alreadyConnectedUsers = Array.from(io.sockets.sockets.keys())
-		socket.emit(
-			"users",
-			alreadyConnectedUsers.map((id) => {
-				return {
-					id,
-					color: io.sockets.sockets.get(id).data.color,
-				}
-			})
-		)
-		socket.broadcast.emit("user connected", socket.id, socket.data.color)
-		socket.emit("color", socket.data.color)
+		socket.on("join", (boardID: string) => {
+			socket.join(boardID)
+			socket.data.boardID = boardID
+			console.log("connected " + socket.id + " to board " + boardID)
+
+			// send array of already connected users
+			const alreadyConnectedUsers = Array.from(
+				io.sockets.adapter.rooms.get(boardID)
+			)
+			console.log("alreadyConnectedUsers", alreadyConnectedUsers)
+
+			socket.emit(
+				"users",
+				alreadyConnectedUsers.map((id) => {
+					return {
+						id,
+						color: io.sockets.sockets.get(id).data.color,
+					}
+				})
+			)
+			socket.broadcast
+				.to(boardID)
+				.emit("user connected", socket.id, socket.data.color)
+			socket.emit("color", socket.data.color)
+		})
 
 		socket.on("sendMessage", (message: string) => {
 			io.emit("recievedMessage", message)
@@ -77,17 +87,19 @@ nextApp.prepare().then(async () => {
 		// })
 
 		socket.on("canvasData", (data) => {
-			socket.broadcast.emit("canvasData", data)
+			socket.broadcast.to(socket.data.boardID).emit("canvasData", data)
 		})
 
 		socket.on("mousemove", (data) => {
 			data.id = socket.id
-			socket.broadcast.emit("moving", data)
+			socket.broadcast.to(socket.data.boardID).emit("moving", data)
 		})
 
 		socket.on("disconnect", () => {
 			console.log("client disconnected")
-			socket.broadcast.emit("clientdisconnect", socket.id)
+			socket.broadcast
+				.to(socket.data.boardID)
+				.emit("clientdisconnect", socket.id)
 		})
 	})
 
