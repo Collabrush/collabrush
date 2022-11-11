@@ -318,7 +318,7 @@ const Draw = ({ params }) => {
 				redoBuffer={redoBuffer}
 				setRedoBuffer={setRedoBuffer}
 			/>
-			{process.env.NODE_ENV === "development" && (
+			{process.env.NEXT_PUBLIC_NODE_ENV === "development" && (
 				<div className='absolute bottom-0 h-fit w-full z-10 p-10'>
 					{/* DEBUGGING INNTERFACE */}
 					<div className='flex flex-row space-x-3 justify-evenly w-full'>

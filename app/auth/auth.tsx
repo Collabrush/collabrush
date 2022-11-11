@@ -1,6 +1,6 @@
 import { useState } from "react"
-import LogIn from "./login"
-import SignUp from "./signup"
+import LogIn from "./logIn"
+import SignUp from "./signUp"
 
 export default function Auth({
 	signInFunction,
