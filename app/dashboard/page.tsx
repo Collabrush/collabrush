@@ -13,10 +13,11 @@ interface Props {}
 function Dashboard(props: Props) {
   const {} = props;
 
-  // initialization states
-  const [isLoading, setLoading] = useState(true);
-  const [user, setUser] = useState<User>(null);
-  const [collaboards, setCollaboards] = useState([]);
+	// initialization states
+	const [isLoading, setLoading] = useState(true)
+	const [user, setUser] = useState<User>(null)
+	const [collaboards, setCollaboards] = useState([])
+	const [sharedCollaboards, setSharedCollaboards] = useState([])
 
   // functionality states
   const [isCreatingCollaboard, setIsCreatingCollaboard] = useState(false);
@@ -36,23 +37,38 @@ function Dashboard(props: Props) {
     })();
   }, [router]);
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data, error } = await supabase
-        .from("boards")
-        .select("boardID,name,thumbnail")
-        .eq("creatorID", user.id);
-      if (error) {
-        console.log(error);
-        toast.error("Error loading collaboards");
-        return;
-      }
-      console.log(data);
-      setCollaboards(data);
-      setLoading(false);
-    })();
-  }, [user]);
+	useEffect(() => {
+		if (!user) return
+		;(async () => {
+			const { data, error } = await supabase
+				.from("boards")
+				.select("boardID,name,thumbnail")
+				.eq("creatorID", user.id)
+			if (error) {
+				console.log(error)
+				toast.error("Error loading collaboards")
+				return
+			}
+			console.log(data)
+			setCollaboards(data)
+
+			const { data: sharedData, error: sharedError } = await supabase
+				.from("writeAccess")
+				.select("*")
+				.eq("email", user.email)
+			if (sharedError) {
+				console.log(sharedError)
+				toast.error("Error loading shared collaboards")
+				return
+			}
+			console.log(sharedData)
+			const boards = sharedData.map((board) => board.board)
+			console.log(boards)
+			setSharedCollaboards(boards)
+
+			setLoading(false)
+		})()
+	}, [user])
 
   return (
     <>

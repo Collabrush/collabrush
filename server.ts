@@ -4,7 +4,7 @@ import next, { NextApiHandler } from "next"
 import * as socketio from "socket.io"
 
 const port: number = parseInt(process.env.PORT || "3000", 10)
-const dev: boolean = process.env.NODE_ENV !== "production"
+const dev: boolean = process.env.NEXT_PUBLIC_NODE_ENV !== "production"
 const nextApp = next({ dev })
 const nextHandler: NextApiHandler = nextApp.getRequestHandler()
 
