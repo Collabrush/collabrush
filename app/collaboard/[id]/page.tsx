@@ -36,7 +36,6 @@ const Draw = ({ params }) => {
 		creatorID: "",
 		isPublic: false,
 		isViewOnly: false,
-		userAccess: {},
 	})
 	const [isLoading, setIsLoading] = useState(true)
 
@@ -112,7 +111,7 @@ const Draw = ({ params }) => {
 	}, [params.id, router])
 
 	useEffect(() => {
-		if (!boardId) return
+		if (!boardId || !user?.email) return
 		;(async () => {
 			const { data, error } = await supabase
 				.from("boards")
@@ -121,15 +120,36 @@ const Draw = ({ params }) => {
 			if (error) {
 				toast.error("Error fetching board")
 				router.push("/")
+				return
 			}
 			if (data.length === 0) {
 				toast.error("Board not found")
 				router.push("/")
+				return
 			}
 			setBoard(data[0])
+
+			// check if user has access
+			if (data[0].creatorID !== user.id) {
+				const { data: access, error: accessError } = await supabase
+					.from("writeAccess")
+					.select("*")
+					.eq("boardID", boardId)
+					.eq("email", user.email)
+				if (accessError) {
+					toast.error("Error fetching board")
+					router.push("/")
+					return
+				}
+				if (access.length === 0) {
+					toast.error("You don't have access to this board")
+					router.push("/")
+					return
+				}
+			}
 			setIsLoading(false)
 		})()
-	}, [boardId, router])
+	}, [boardId, router, user])
 
 	// // initialize socket on hot reload
 	// useEffect(() => {
@@ -310,6 +330,7 @@ const Draw = ({ params }) => {
 				}}></canvas> */}
 			<ReactPaint
 				board={board}
+				userId={user?.id}
 				socket={socket}
 				buffer={buffer}
 				setBuffer={setBuffer}

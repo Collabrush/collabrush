@@ -34,6 +34,7 @@ const defaultToolbarItems = [
 
 const ReactPaint = (props: {
 	board: any
+	userId: string
 	socket: Socket
 	buffer: string[]
 	setBuffer: Function
